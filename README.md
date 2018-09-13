@@ -29,13 +29,11 @@ The detailss of scope, please refer [here](https://developers.google.com/drive/a
 * Start up Liferay server
 * Place this hook at ${liferay_workspace}/modules and go to the root directory of hook, then run ```blade deploy```
 * Access to Liferay as Admin and navigate to Control Panel -> Contents -> Documents and Media
-* Click plus button and opens up Repository, then choose Googld Drive
+* Click plus button and select Repository, open up Repository Configuration accordion and choose Googld Drive
 * Fill in Google Client ID, Google Secret, Access Token and Refresh Token and Save it with a name of the configration.
 * Enjoy! 
 
 ## Reference links
-[Drive API v2](https://developers.google.com/api-client-library/java/apis/drive/v2)
-[Drive API v2 Explore on browser](https://developers.google.com/apis-explorer/#p/drive/v2/)
-[Google API Java Client Sample](https://github.com/google/google-api-java-client-samples/tree/master/drive-cmdline-sample)
-
-
+* [Drive API v2](https://developers.google.com/api-client-library/java/apis/drive/v2)
+* [Drive API v2 Explore on browser](https://developers.google.com/apis-explorer/#p/drive/v2/)
+* [Google API Java Client Sample](https://github.com/google/google-api-java-client-samples/tree/master/drive-cmdline-sample)

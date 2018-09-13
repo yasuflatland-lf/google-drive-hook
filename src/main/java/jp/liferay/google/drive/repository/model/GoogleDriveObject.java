@@ -21,6 +21,8 @@ import com.liferay.document.library.repository.external.ExtRepositoryObject;
 import com.liferay.portal.kernel.util.GetterUtil;
 
 import java.util.Date;
+import java.util.EnumSet;
+import java.util.Set;
 
 /**
  * @author Sergio González
@@ -45,6 +47,12 @@ public class GoogleDriveObject
 	public boolean containsPermission(
 		ExtRepositoryPermission extRepositoryPermission) {
 
+		if (_unsupportedExtRepositoryPermissions.contains(
+				extRepositoryPermission)) {
+
+			return false;
+		}
+		
 		String role = _permission.getRole();
 
 		if (extRepositoryPermission.equals(ExtRepositoryPermission.ACCESS) ||
@@ -103,6 +111,14 @@ public class GoogleDriveObject
 		return false;
 	}
 
+	private static final Set<ExtRepositoryPermission>
+	_unsupportedExtRepositoryPermissions = EnumSet.of(
+		ExtRepositoryPermission.ADD_DISCUSSION,
+		ExtRepositoryPermission.ADD_SHORTCUT,
+		ExtRepositoryPermission.DELETE_DISCUSSION,
+		ExtRepositoryPermission.PERMISSIONS,
+		ExtRepositoryPermission.UPDATE_DISCUSSION);
+	
 	private String _description;
 	private String _extension;
 	private Date _modifiedDate;

@@ -568,7 +568,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			}
 		}
 		catch (IOException ioe) {
-			//_log.error(ioe, ioe);
+			_log.error(ioe, ioe);
 		}
 
 		return null;

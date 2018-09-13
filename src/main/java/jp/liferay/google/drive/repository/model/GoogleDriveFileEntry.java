@@ -55,10 +55,5 @@ public class GoogleDriveFileEntry
 	private String _downloadURL;
 	private String _mimeType;
 	private String _title;
-	@Override
-	public boolean containsPermission(ExtRepositoryPermission extRepositoryPermission) {
-		// TODO Auto-generated method stub
-		return false;
-	}
 
 }
