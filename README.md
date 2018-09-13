@@ -26,6 +26,12 @@ The detailss of scope, please refer [here](https://developers.google.com/drive/a
 2. JSON data will be displayed. Recorde the refresh token.
 
 ### How to Deploy the module
+Add following properties into portal-ext.properties. For more details, refere [here](https://dev.liferay.com/ja/develop/tutorials/-/knowledge_base/7-0/using-the-wab-generator)
+```
+module.framework.web.generator.generated.wabs.store=true
+module.framework.web.generator.generated.wabs.store.dir=${module.framework.base.dir}/wabs
+```
+
 * Start up Liferay server
 * Place this hook at ${liferay_workspace}/modules and go to the root directory of hook, then run ```blade deploy```
 * Access to Liferay as Admin and navigate to Control Panel -> Contents -> Documents and Media

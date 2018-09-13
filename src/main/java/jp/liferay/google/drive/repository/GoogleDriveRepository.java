@@ -128,22 +128,35 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	public ExtRepositoryFileVersion cancelCheckOut(
 		String extRepositoryFileEntryKey) {
 
-		throw new UnsupportedOperationException();
+		_log.info("Cancel checkout is not supported for Google Drive");
+		
+		return null;
 	}
 
 	@Override
 	public void checkInExtRepositoryFileEntry(
 		String extRepositoryFileEntryKey, boolean createMajorVersion,
 		String changeLog) {
-
-		throw new UnsupportedOperationException();
+        
+		_log.info("Check in is not supported for Google Drive");
 	}
 
 	@Override
 	public ExtRepositoryFileEntry checkOutExtRepositoryFileEntry(
 		String extRepositoryFileEntryKey) {
 
-		throw new UnsupportedOperationException();
+        try {
+            Drive drive = getDrive();
+
+            File file = getFile(drive, extRepositoryFileEntryKey);
+
+            return new GoogleDriveFileEntry(file);
+        }
+        catch (IOException | PortalException ioe) {
+            _log.error(ioe, ioe);
+
+            throw new SystemException(ioe);
+        }
 	}
 
 	@Override
