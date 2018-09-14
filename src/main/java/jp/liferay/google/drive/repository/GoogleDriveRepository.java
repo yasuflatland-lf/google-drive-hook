@@ -24,6 +24,7 @@ import com.google.api.client.http.InputStreamContent;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.Drive.Files;
 import com.google.api.services.drive.model.About;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
@@ -235,6 +236,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 	@Override
 	public String getAuthType() {
+		//return CompanyConstants.AUTH_TYPE_SN;
 		return null;
 	}
 
@@ -689,6 +691,12 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		return googleDriveSession.getDrive();
 	}
 
+	/**
+	 * Get Google Drive Session
+	 * 
+	 * @return GoogleDriveSession
+	 * @throws PortalException
+	 */
 	protected GoogleDriveSession getGoogleDriveSession()
 			throws PortalException {
 
@@ -774,7 +782,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 		return new GoogleDriveSession(drive, about.getRootFolderId());
 	}	
-	
+
 	@Override
 	public <T extends ExtRepositoryObject> T moveExtRepositoryObject(
 			ExtRepositoryObjectType<T> extRepositoryObjectType,
@@ -786,6 +794,17 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			Drive drive = getDrive();
 
 			File file = getFile(drive, extRepositoryObjectKey);
+			
+			// Change Name
+			if(!file.getTitle().equals(newTitle)) {
+				file.setTitle(newTitle);
+
+				// Rename the file.
+				Files.Patch patchRequest = drive.files().patch(file.getId(), file);
+				patchRequest.setFields("title");
+
+				file = patchRequest.execute();
+			}
 
 			Drive.Parents driveParents = drive.parents();
 
@@ -941,7 +960,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			throw new SystemException(ioe);
 		}
 	}
-
+	
 	protected File addFile(
 			String extRepositoryParentFolderKey, String mimeType, String title,
 			String description, InputStream inputStream)

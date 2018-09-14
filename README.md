@@ -18,28 +18,32 @@ This is a sample of Google Drive integration with Document and Media
 
 ### How to generate Authorization Code
 The detailss of scope, please refer [here](https://developers.google.com/drive/api/v2/about-auth)
-1. Replase <Google Client ID> of the following link and open up ```https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=<Google Client ID>&redirect_uri=urn:ietf:wg:oauth:2.0:oob&scope=https://www.googleapis.com/auth/drive&access_type=offline```
+1. Replase ```<Google Client ID>``` of the following link and open up ```https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=<Google Client ID>&redirect_uri=urn:ietf:wg:oauth:2.0:oob&scope=https://www.googleapis.com/auth/drive&access_type=offline```
 2. Record the Authorization code displayed.
 
 ### How to generate Access Token and Refresh Token
-1. Open up a console and replace Authorization code, Client ID and Client Secret in the code and run ```curl --data "code=<Authorization Code>" --data "client_id=<Client ID>" --data "client_secret=<Client Secret>" --data "redirect_uri=urn:ietf:wg:oauth:2.0:oob" --data "grant_type=authorization_code" --data "access_type=offline" https://www.googleapis.com/oauth2/v4/token```
-2. JSON data will be displayed. Recorde the refresh token.
+Open up a console and replace ```Authorization code```, ```Client ID``` and ```Client Secret``` in the code and run 
+```
+curl --data "code=<Authorization Code>" --data "client_id=<Client ID>" --data "client_secret=<Client Secret>" --data "redirect_uri=urn:ietf:wg:oauth:2.0:oob" --data "grant_type=authorization_code" --data "access_type=offline" https://www.googleapis.com/oauth2/v4/token
+```
+JSON data will be displayed. Recorde the refresh token.
 
 ### How to Deploy the module
-Add following properties into portal-ext.properties. For more details, refere [here](https://dev.liferay.com/ja/develop/tutorials/-/knowledge_base/7-0/using-the-wab-generator)
+Add following properties into portal-ext.properties. For more details, consult [here](https://dev.liferay.com/ja/develop/tutorials/-/knowledge_base/7-0/using-the-wab-generator)
 ```
 module.framework.web.generator.generated.wabs.store=true
 module.framework.web.generator.generated.wabs.store.dir=${module.framework.base.dir}/wabs
 ```
 
 * Start up Liferay server
-* Place this hook at ${liferay_workspace}/modules and go to the root directory of hook, then run ```blade deploy```
+* Place this hook at ```${liferay_workspace}/modules``` and go to the root directory of hook, then run ```blade deploy```
 * Access to Liferay as Admin and navigate to Control Panel -> Contents -> Documents and Media
 * Click plus button and select Repository, open up Repository Configuration accordion and choose Googld Drive
-* Fill in Google Client ID, Google Secret, Access Token and Refresh Token and Save it with a name of the configration.
+* Fill in ```Google Client ID```, ```Google Secret```, ```Access Token``` and ```Refresh Token``` and Save it with a name of the configration.
 * Enjoy! 
 
 ## Reference links
+* [Liferay Wab Generator](https://dev.liferay.com/ja/develop/tutorials/-/knowledge_base/7-0/using-the-wab-generator)
 * [Drive API v2](https://developers.google.com/api-client-library/java/apis/drive/v2)
 * [Drive API v2 Explore on browser](https://developers.google.com/apis-explorer/#p/drive/v2/)
 * [Google API Java Client Sample](https://github.com/google/google-api-java-client-samples/tree/master/drive-cmdline-sample)

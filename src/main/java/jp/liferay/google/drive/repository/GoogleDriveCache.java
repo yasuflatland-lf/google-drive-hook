@@ -15,7 +15,6 @@
 package jp.liferay.google.drive.repository;
 
 import com.google.api.services.drive.model.File;
-
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.util.AutoResetThreadLocal;
@@ -102,7 +101,7 @@ public class GoogleDriveCache implements Cloneable {
 	private static ThreadLocal<GoogleDriveCache> _googleDriveThreadLocal =
 		new AutoResetThreadLocal<>(
 			GoogleDriveCache.class.getName(), new GoogleDriveCache());
-
+	
 	private Map<String, File> _googleDriveFiles;
 
 }
