@@ -783,6 +783,36 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		return new GoogleDriveSession(drive, about.getRootFolderId());
 	}	
 
+	/**
+	 * Rename the object
+	 * 
+	 * @param extRepositoryObjectKey
+	 * @param newTitle
+	 * @throws PortalException
+	 */
+	private void renameObject(String extRepositoryObjectKey, String newTitle) 
+			throws PortalException {
+		try {
+			Drive drive = getDrive();
+
+			File file = getFile(drive, extRepositoryObjectKey);
+			
+			file.setTitle(newTitle);
+
+			// Rename the file.
+			Files.Patch patchRequest = drive.files().patch(file.getId(), file);
+			patchRequest.setFields("title");
+
+			file = patchRequest.execute();			
+
+		}
+		catch (IOException ioe) {
+			_log.error(ioe, ioe);
+
+			throw new SystemException(ioe);
+		}		
+	}
+	
 	@Override
 	public <T extends ExtRepositoryObject> T moveExtRepositoryObject(
 			ExtRepositoryObjectType<T> extRepositoryObjectType,
@@ -797,13 +827,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			
 			// Change Name
 			if(!file.getTitle().equals(newTitle)) {
-				file.setTitle(newTitle);
-
-				// Rename the file.
-				Files.Patch patchRequest = drive.files().patch(file.getId(), file);
-				patchRequest.setFields("title");
-
-				file = patchRequest.execute();
+				renameObject(extRepositoryObjectKey, newTitle);
 			}
 
 			Drive.Parents driveParents = drive.parents();
