@@ -54,7 +54,6 @@ import com.liferay.portal.kernel.search.SearchContext;
 import com.liferay.portal.kernel.search.SearchException;
 import com.liferay.portal.kernel.security.auth.PrincipalException;
 import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
-import com.liferay.portal.kernel.service.UserLocalServiceUtil;
 import com.liferay.portal.kernel.servlet.PortalSessionThreadLocal;
 import com.liferay.portal.kernel.util.AutoResetThreadLocal;
 import com.liferay.portal.kernel.util.StringBundler;
@@ -160,6 +159,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
         }
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends ExtRepositoryObject> T copyExtRepositoryObject(
 			ExtRepositoryObjectType<T> extRepositoryObjectType,
@@ -379,6 +379,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends ExtRepositoryObject> T getExtRepositoryObject(
 			ExtRepositoryObjectType<T> extRepositoryObjectType,
@@ -413,6 +414,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends ExtRepositoryObject> T getExtRepositoryObject(
 			ExtRepositoryObjectType<T> extRepositoryObjectType,
@@ -475,6 +477,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends ExtRepositoryObject> List<T> getExtRepositoryObjects(
 			ExtRepositoryObjectType<T> extRepositoryObjectType,
@@ -697,6 +700,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	 * @return GoogleDriveSession
 	 * @throws PortalException
 	 */
+	@SuppressWarnings("unchecked")
 	protected GoogleDriveSession getGoogleDriveSession()
 			throws PortalException {
 
@@ -745,7 +749,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		
 		long userId = PrincipalThreadLocal.getUserId();
 		
-		User user =  UserLocalServiceUtil.getUser(userId);
+		User user =  userLocalService.getUser(userId);
 
 		if (user.isDefaultUser()) {
 			throw new PrincipalException("User is not authenticated");
@@ -790,7 +794,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	 * @param newTitle
 	 * @throws PortalException
 	 */
-	private void renameObject(String extRepositoryObjectKey, String newTitle) 
+	protected void renameObject(String extRepositoryObjectKey, String newTitle) 
 			throws PortalException {
 		try {
 			Drive drive = getDrive();
@@ -803,7 +807,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			Files.Patch patchRequest = drive.files().patch(file.getId(), file);
 			patchRequest.setFields("title");
 
-			file = patchRequest.execute();			
+			patchRequest.execute();			
 
 		}
 		catch (IOException ioe) {
@@ -813,6 +817,13 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		}		
 	}
 	
+	/**
+	 * Move Object in the google drive
+	 * 
+	 * This method is also called at updateing the object as well. 
+	 * This method is responsible for changing name and moving object.
+	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends ExtRepositoryObject> T moveExtRepositoryObject(
 			ExtRepositoryObjectType<T> extRepositoryObjectType,
@@ -863,6 +874,15 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		}
 	}
 
+	/**
+	 * Building search query for Google Drive
+	 * 
+	 * @param keywords
+	 * @param folderIds
+	 * @param extRepositoryQueryMapper
+	 * @return
+	 * @throws SearchException
+	 */
 	protected String getSearchQuery(
 			String keywords, long[] folderIds,
 			ExtRepositoryQueryMapper extRepositoryQueryMapper)
@@ -894,7 +914,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 		return sb.toString();
 	}
-
+	
 	@Override
 	public List<ExtRepositorySearchResult<?>> search(
 			SearchContext searchContext, Query query,
@@ -955,6 +975,34 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		}
 	}
 
+	/**
+	 * Update mimeType in Google Doc Metadata
+	 * 
+	 * @param extRepositoryFileEntryKey
+	 * @param mimeType
+	 * @throws PortalException
+	 */
+	protected void updateMimeTypeObject(File file, String mimeType) 
+			throws PortalException {
+		try {
+			Drive drive = getDrive();
+
+			file.setMimeType(mimeType);
+
+			// Rename the file.
+			Files.Patch patchRequest = drive.files().patch(file.getId(), file);
+			patchRequest.setFields("mimeType");
+
+			patchRequest.execute();			
+
+		}
+		catch (IOException ioe) {
+			_log.error(ioe, ioe);
+
+			throw new SystemException(ioe);
+		}		
+	}
+	
 	@Override
 	public ExtRepositoryFileEntry updateExtRepositoryFileEntry(
 			String extRepositoryFileEntryKey, String mimeType,
@@ -963,11 +1011,17 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 		try {
 			Drive drive = getDrive();
-
+			boolean changeMimeType = false;
+			
 			Drive.Files driveFiles = drive.files();
 
 			File file = getFile(drive, extRepositoryFileEntryKey);
-
+			
+			//Check if mime type has been changed.
+//			if(!file.getMimeType().equals(mimeType)) {
+//				changeMimeType = true;
+//			}
+			
 			InputStreamContent inputStreamContent = new InputStreamContent(
 				mimeType, inputStream);
 
@@ -975,6 +1029,12 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 				extRepositoryFileEntryKey, file, inputStreamContent);
 
 			file = driveFilesUpdate.execute();
+
+			//Update mimeType in Google Doc Metadata after updated the date.
+//			if(changeMimeType) {
+//				updateMimeTypeObject(file, mimeType);
+//				file.setMimeType(mimeType);
+//			}
 
 			return new GoogleDriveFileEntry(file);
 		}
@@ -985,6 +1045,17 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		}
 	}
 	
+	/**
+	 * Add File 
+	 * 
+	 * @param extRepositoryParentFolderKey
+	 * @param mimeType
+	 * @param title
+	 * @param description
+	 * @param inputStream
+	 * @return
+	 * @throws PortalException
+	 */
 	protected File addFile(
 			String extRepositoryParentFolderKey, String mimeType, String title,
 			String description, InputStream inputStream)
@@ -1033,6 +1104,14 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		}
 	}	
 	
+	/**
+	 * Get File information
+	 * 
+	 * @param drive
+	 * @param extRepositoryObjectKey
+	 * @return
+	 * @throws IOException
+	 */
 	protected File getFile(Drive drive, String extRepositoryObjectKey)
 			throws IOException {
 
