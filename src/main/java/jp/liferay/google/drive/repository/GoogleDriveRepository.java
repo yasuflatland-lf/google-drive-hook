@@ -64,6 +64,7 @@ import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.servlet.PortalSessionThreadLocal;
 import com.liferay.portal.kernel.util.AutoResetThreadLocal;
+import com.liferay.portal.kernel.util.MimeTypesUtil;
 import com.liferay.portal.kernel.util.StringBundler;
 import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.kernel.util.StringUtil;
@@ -77,6 +78,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import javax.servlet.http.HttpSession;
 
@@ -90,26 +92,30 @@ import jp.liferay.google.drive.repository.model.GoogleDriveFolder;
  * @author Sergio González
  * @author Yasuyuki Takeo
  */
-public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRepository {
+public class GoogleDriveRepository extends ExtRepositoryAdapter
+	implements ExtRepository {
 
 	public GoogleDriveRepository() {
+
 		super(null);
 	}
 
 	@Override
 	public String[] getSupportedConfigurations() {
+
 		return _SUPPORTED_CONFIGURATIONS;
 	}
 
 	@Override
 	public String[][] getSupportedParameters() {
+
 		return _SUPPORTED_PARAMETERS;
 	}
-	
+
 	@Override
 	public ExtRepositoryFileEntry addExtRepositoryFileEntry(
-			String extRepositoryParentFolderKey, String mimeType, String title,
-			String description, String changeLog, InputStream inputStream)
+		String extRepositoryParentFolderKey, String mimeType, String title,
+		String description, String changeLog, InputStream inputStream)
 		throws PortalException {
 
 		File file = addFile(
@@ -121,8 +127,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 	@Override
 	public ExtRepositoryFolder addExtRepositoryFolder(
-			String extRepositoryParentFolderKey, String name,
-			String description)
+		String extRepositoryParentFolderKey, String name, String description)
 		throws PortalException {
 
 		File file = addFile(
@@ -137,7 +142,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		String extRepositoryFileEntryKey) {
 
 		_log.info("Cancel checkout is not supported for Google Drive");
-		
+
 		return null;
 	}
 
@@ -145,7 +150,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	public void checkInExtRepositoryFileEntry(
 		String extRepositoryFileEntryKey, boolean createMajorVersion,
 		String changeLog) {
-        
+
 		_log.info("Check in is not supported for Google Drive");
 	}
 
@@ -153,26 +158,26 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	public ExtRepositoryFileEntry checkOutExtRepositoryFileEntry(
 		String extRepositoryFileEntryKey) {
 
-        try {
-            Drive drive = getDrive();
+		try {
+			Drive drive = getDrive();
 
-            File file = getFile(drive, extRepositoryFileEntryKey);
+			File file = getFile(drive, extRepositoryFileEntryKey);
 
-            return new GoogleDriveFileEntry(file);
-        }
-        catch (IOException | PortalException ioe) {
-            _log.error(ioe, ioe);
+			return new GoogleDriveFileEntry(file);
+		}
+		catch (IOException | PortalException ioe) {
+			_log.error(ioe, ioe);
 
-            throw new SystemException(ioe);
-        }
+			throw new SystemException(ioe);
+		}
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends ExtRepositoryObject> T copyExtRepositoryObject(
-			ExtRepositoryObjectType<T> extRepositoryObjectType,
-			String extRepositoryFileEntryKey, String newExtRepositoryFolderKey,
-			String newTitle)
+		ExtRepositoryObjectType<T> extRepositoryObjectType,
+		String extRepositoryFileEntryKey, String newExtRepositoryFolderKey,
+		String newTitle)
 		throws PortalException {
 
 		try {
@@ -188,21 +193,21 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 			newFile.setParents(Arrays.asList(parentReference));
 
-			Drive.Files.Copy driveFilesCopy = driveFiles.copy(
-				extRepositoryFileEntryKey, newFile);
+			Drive.Files.Copy driveFilesCopy =
+				driveFiles.copy(extRepositoryFileEntryKey, newFile);
 
 			driveFilesCopy.execute();
 
 			T extRepositoryObject = null;
 
 			if (extRepositoryObjectType.equals(
-					ExtRepositoryObjectType.FOLDER)) {
+				ExtRepositoryObjectType.FOLDER)) {
 
-				extRepositoryObject = (T)new GoogleDriveFolder(
-					newFile, getRootFolderKey());
+				extRepositoryObject =
+					(T) new GoogleDriveFolder(newFile, getRootFolderKey());
 			}
 			else {
-				extRepositoryObject = (T)new GoogleDriveFileEntry(newFile);
+				extRepositoryObject = (T) new GoogleDriveFileEntry(newFile);
 			}
 
 			return extRepositoryObject;
@@ -216,9 +221,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 	@Override
 	public void deleteExtRepositoryObject(
-			ExtRepositoryObjectType<? extends ExtRepositoryObject>
-				extRepositoryObjectType,
-			String extRepositoryObjectKey)
+		ExtRepositoryObjectType<? extends ExtRepositoryObject> extRepositoryObjectType,
+		String extRepositoryObjectKey)
 		throws PortalException {
 
 		try {
@@ -226,8 +230,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 			Drive.Files driveFiles = drive.files();
 
-			Drive.Files.Delete driveFilesDelete = driveFiles.delete(
-				extRepositoryObjectKey);
+			Drive.Files.Delete driveFilesDelete =
+				driveFiles.delete(extRepositoryObjectKey);
 
 			driveFilesDelete.execute();
 
@@ -244,28 +248,29 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 	@Override
 	public String getAuthType() {
-		//return CompanyConstants.AUTH_TYPE_SN;
+
+		// return CompanyConstants.AUTH_TYPE_SN;
 		return null;
 	}
 
 	@Override
 	public InputStream getContentStream(
-			ExtRepositoryFileEntry extRepositoryFileEntry)
+		ExtRepositoryFileEntry extRepositoryFileEntry)
 		throws PortalException {
 
 		GoogleDriveFileEntry googleDriveFileEntry =
-			(GoogleDriveFileEntry)extRepositoryFileEntry;
+			(GoogleDriveFileEntry) extRepositoryFileEntry;
 
 		return getContentStream(googleDriveFileEntry.getDownloadURL());
 	}
 
 	@Override
 	public InputStream getContentStream(
-			ExtRepositoryFileVersion extRepositoryFileVersion)
+		ExtRepositoryFileVersion extRepositoryFileVersion)
 		throws PortalException {
 
 		GoogleDriveFileVersion googleDriveFileVersion =
-			(GoogleDriveFileVersion)extRepositoryFileVersion;
+			(GoogleDriveFileVersion) extRepositoryFileVersion;
 
 		return getContentStream(googleDriveFileVersion.getDownloadURL());
 	}
@@ -284,8 +289,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		GenericUrl genericUrl = new GenericUrl(downloadURL);
 
 		try {
-			HttpRequest httpRequest = httpRequestFactory.buildGetRequest(
-				genericUrl);
+			HttpRequest httpRequest =
+				httpRequestFactory.buildGetRequest(genericUrl);
 
 			HttpResponse httpResponse = httpRequest.execute();
 
@@ -297,10 +302,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			throw new SystemException(ioe);
 		}
 	}
-	
+
 	@Override
 	public ExtRepositoryFileVersion getExtRepositoryFileVersion(
-			ExtRepositoryFileEntry extRepositoryFileEntry, String version)
+		ExtRepositoryFileEntry extRepositoryFileEntry, String version)
 		throws PortalException {
 
 		try {
@@ -315,8 +320,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 			List<Revision> revisions = revisionList.getItems();
 
-			int[] versionParts = StringUtil.split(
-				version, StringPool.PERIOD, 0);
+			int[] versionParts =
+				StringUtil.split(version, StringPool.PERIOD, 0);
 
 			Revision revision = revisions.get(versionParts[0]);
 
@@ -332,12 +337,11 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	}
 
 	@Override
-	public ExtRepositoryFileVersionDescriptor
-		getExtRepositoryFileVersionDescriptor(
-			String extRepositoryFileVersionKey) {
+	public ExtRepositoryFileVersionDescriptor getExtRepositoryFileVersionDescriptor(
+		String extRepositoryFileVersionKey) {
 
-		String[] extRepositoryFileVersionKeyParts = StringUtil.split(
-			extRepositoryFileVersionKey, StringPool.COLON);
+		String[] extRepositoryFileVersionKeyParts =
+			StringUtil.split(extRepositoryFileVersionKey, StringPool.COLON);
 
 		String extRepositoryFileEntryKey = extRepositoryFileVersionKeyParts[0];
 		String version = extRepositoryFileVersionKeyParts[2];
@@ -348,7 +352,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 	@Override
 	public List<ExtRepositoryFileVersion> getExtRepositoryFileVersions(
-			ExtRepositoryFileEntry extRepositoryFileEntry)
+		ExtRepositoryFileEntry extRepositoryFileEntry)
 		throws PortalException {
 
 		try {
@@ -390,8 +394,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends ExtRepositoryObject> T getExtRepositoryObject(
-			ExtRepositoryObjectType<T> extRepositoryObjectType,
-			String extRepositoryObjectKey)
+		ExtRepositoryObjectType<T> extRepositoryObjectType,
+		String extRepositoryObjectKey)
 		throws PortalException {
 
 		try {
@@ -402,13 +406,13 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			T extRepositoryObject = null;
 
 			if (extRepositoryObjectType.equals(
-					ExtRepositoryObjectType.FOLDER)) {
+				ExtRepositoryObjectType.FOLDER)) {
 
-				extRepositoryObject = (T)new GoogleDriveFolder(
-					file, getRootFolderKey());
+				extRepositoryObject =
+					(T) new GoogleDriveFolder(file, getRootFolderKey());
 			}
 			else {
-				extRepositoryObject = (T)new GoogleDriveFileEntry(file);
+				extRepositoryObject = (T) new GoogleDriveFileEntry(file);
 			}
 
 			return extRepositoryObject;
@@ -425,8 +429,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends ExtRepositoryObject> T getExtRepositoryObject(
-			ExtRepositoryObjectType<T> extRepositoryObjectType,
-			String extRepositoryFolderKey, String title)
+		ExtRepositoryObjectType<T> extRepositoryObjectType,
+		String extRepositoryFolderKey, String title)
 		throws PortalException {
 
 		try {
@@ -439,7 +443,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			sb.append(" and mimeType ");
 
 			if (extRepositoryObjectType.equals(
-					ExtRepositoryObjectType.FOLDER)) {
+				ExtRepositoryObjectType.FOLDER)) {
 
 				sb.append("= ");
 			}
@@ -470,13 +474,13 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			}
 
 			if (extRepositoryObjectType.equals(
-					ExtRepositoryObjectType.FOLDER)) {
+				ExtRepositoryObjectType.FOLDER)) {
 
-				return (T)new GoogleDriveFolder(
+				return (T) new GoogleDriveFolder(
 					files.get(0), getRootFolderKey());
 			}
 
-			return (T)new GoogleDriveFileEntry(files.get(0));
+			return (T) new GoogleDriveFileEntry(files.get(0));
 		}
 		catch (IOException ioe) {
 			_log.error(ioe, ioe);
@@ -488,8 +492,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends ExtRepositoryObject> List<T> getExtRepositoryObjects(
-			ExtRepositoryObjectType<T> extRepositoryObjectType,
-			String extRepositoryFolderKey)
+		ExtRepositoryObjectType<T> extRepositoryObjectType,
+		String extRepositoryFolderKey)
 		throws PortalException {
 
 		try {
@@ -508,12 +512,12 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			}
 
 			if (!extRepositoryObjectType.equals(
-					ExtRepositoryObjectType.OBJECT)) {
+				ExtRepositoryObjectType.OBJECT)) {
 
 				sb.append("mimeType");
 
 				if (extRepositoryObjectType.equals(
-						ExtRepositoryObjectType.FILE)) {
+					ExtRepositoryObjectType.FILE)) {
 
 					sb.append(" != '");
 				}
@@ -540,10 +544,11 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			for (File file : files) {
 				if (_FOLDER_MIME_TYPE.equals(file.getMimeType())) {
 					extRepositoryObjects.add(
-						(T)new GoogleDriveFolder(file, getRootFolderKey()));
+						(T) new GoogleDriveFolder(file, getRootFolderKey()));
 				}
 				else {
-					extRepositoryObjects.add((T)new GoogleDriveFileEntry(file));
+					extRepositoryObjects.add(
+						(T) new GoogleDriveFileEntry(file));
 				}
 
 				googleDriveCache.put(file);
@@ -560,9 +565,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 	@Override
 	public int getExtRepositoryObjectsCount(
-			ExtRepositoryObjectType<? extends ExtRepositoryObject>
-				extRepositoryObjectType,
-			String extRepositoryFolderKey)
+		ExtRepositoryObjectType<? extends ExtRepositoryObject> extRepositoryObjectType,
+		String extRepositoryFolderKey)
 		throws PortalException {
 
 		List<? extends ExtRepositoryObject> extRepositoryObjects =
@@ -574,14 +578,14 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 	@Override
 	public ExtRepositoryFolder getExtRepositoryParentFolder(
-			ExtRepositoryObject extRepositoryObject)
+		ExtRepositoryObject extRepositoryObject)
 		throws PortalException {
 
 		try {
 			Drive drive = getDrive();
 
-			File file = getFile(
-				drive, extRepositoryObject.getExtRepositoryModelKey());
+			File file =
+				getFile(drive, extRepositoryObject.getExtRepositoryModelKey());
 
 			List<ParentReference> parentReferences = file.getParents();
 
@@ -602,11 +606,13 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 	@Override
 	public String getLiferayLogin(String extRepositoryLogin) {
+
 		return null;
 	}
-	
+
 	@Override
 	public String getRootFolderKey() {
+
 		try {
 			GoogleDriveSession googleDriveSession = getGoogleDriveSession();
 
@@ -620,8 +626,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	}
 
 	protected List<String> getSubfolderKeys(
-			String extRepositoryFolderKey, boolean recurse,
-			List<String> subfolderKeys)
+		String extRepositoryFolderKey, boolean recurse,
+		List<String> subfolderKeys)
 		throws PortalException {
 
 		List<ExtRepositoryFolder> extRepositoryFolders =
@@ -640,10 +646,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 		return subfolderKeys;
 	}
-	
+
 	@Override
 	public List<String> getSubfolderKeys(
-			String extRepositoryFolderKey, boolean recurse)
+		String extRepositoryFolderKey, boolean recurse)
 		throws PortalException {
 
 		List<String> subfolderKeys = new ArrayList<>();
@@ -657,46 +663,54 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	 * Initialize Repository
 	 */
 	@Override
-	public void initRepository(UnicodeProperties typeSettingsProperties, CredentialsProvider credentialsProvider)
-			throws PortalException {
+	public void initRepository(
+		UnicodeProperties typeSettingsProperties,
+		CredentialsProvider credentialsProvider)
+		throws PortalException {
 
 		_googleClientId = typeSettingsProperties.getProperty(_GOOGLE_CLIENT_ID);
 
-		_googleClientSecret = typeSettingsProperties.getProperty(_GOOGLE_CLIENT_SECRET);
+		_googleClientSecret =
+			typeSettingsProperties.getProperty(_GOOGLE_CLIENT_SECRET);
 
 		// At initialization, the values are always null
 		if (Validator.isNull(_googleClientId) ||
-			Validator.isNull(_googleClientSecret)	) {
-			if(_log.isDebugEnabled()) {
-				_log.debug("Google Client ID or Google Client Secret are empty");
+			Validator.isNull(_googleClientSecret)) {
+			if (_log.isDebugEnabled()) {
+				_log.debug(
+					"Google Client ID or Google Client Secret are empty");
 			}
 			return;
 		}
 
-		_googleAccessToken = typeSettingsProperties.getProperty(_GOOGLE_ACCESS_TOKEN);
+		_googleAccessToken =
+			typeSettingsProperties.getProperty(_GOOGLE_ACCESS_TOKEN);
 
-		_googleRefreshToken = typeSettingsProperties.getProperty(_GOOGLE_REFRESH_TOKEN);
+		_googleRefreshToken =
+			typeSettingsProperties.getProperty(_GOOGLE_REFRESH_TOKEN);
 
 		// At initialization, the values are always null
 		if (Validator.isNull(_googleAccessToken) ||
-			Validator.isNull(_googleRefreshToken)	) {
-			if(_log.isDebugEnabled()) {
+			Validator.isNull(_googleRefreshToken)) {
+			if (_log.isDebugEnabled()) {
 				_log.debug("Access Token or Refresh Token are empty");
 			}
 			return;
 		}
-		
-		if(_log.isDebugEnabled()) {
+
+		if (_log.isDebugEnabled()) {
 			_log.debug("Client ID     : " + _googleClientId);
 			_log.debug("Client Secret : " + _googleClientSecret);
 			_log.debug("Access Token  : " + _googleAccessToken);
 			_log.debug("Refresh Token : " + _googleRefreshToken);
 		}
-		
+
 		getDrive();
 	}
-	
-	public Drive getDrive() throws PortalException {
+
+	public Drive getDrive()
+		throws PortalException {
+
 		GoogleDriveSession googleDriveSession = getGoogleDriveSession();
 
 		return googleDriveSession.getDrive();
@@ -710,7 +724,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	 */
 	@SuppressWarnings("unchecked")
 	protected GoogleDriveSession getGoogleDriveSession()
-			throws PortalException {
+		throws PortalException {
 
 		GoogleDriveSession googleDriveSession = null;
 
@@ -718,7 +732,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 		if (httpSession != null) {
 			TransientValue<GoogleDriveSession> transientValue =
-				(TransientValue<GoogleDriveSession>)httpSession.getAttribute(
+				(TransientValue<GoogleDriveSession>) httpSession.getAttribute(
 					GoogleDriveSession.class.getName());
 
 			if (transientValue != null) {
@@ -751,13 +765,13 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 		return googleDriveSession;
 	}
-	
+
 	protected GoogleDriveSession buildGoogleDriveSession()
 		throws IOException, PortalException {
-		
+
 		long userId = PrincipalThreadLocal.getUserId();
-		
-		User user =  userLocalService.getUser(userId);
+
+		User user = userLocalService.getUser(userId);
 
 		if (user.isDefaultUser()) {
 			throw new PrincipalException("User is not authenticated");
@@ -781,8 +795,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 		googleCredential.setRefreshToken(_googleRefreshToken);
 
-		Drive.Builder driveBuilder = new Drive.Builder(
-			httpTransport, jsonFactory, googleCredential);
+		Drive.Builder driveBuilder =
+			new Drive.Builder(httpTransport, jsonFactory, googleCredential);
 
 		Drive drive = driveBuilder.build();
 
@@ -793,7 +807,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		About about = driveAboutGet.execute();
 
 		return new GoogleDriveSession(drive, about.getRootFolderId());
-	}	
+	}
 
 	/**
 	 * Rename the object
@@ -802,50 +816,51 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	 * @param newTitle
 	 * @throws PortalException
 	 */
-	protected void renameObject(String extRepositoryObjectKey, String newTitle) 
-			throws PortalException {
-		try {
-			Drive drive = getDrive();
-
-			File file = getFile(drive, extRepositoryObjectKey);
-			
-			file.setTitle(newTitle);
-
-			// Rename the file.
-			Files.Patch patchRequest = drive.files().patch(file.getId(), file);
-			patchRequest.setFields("title");
-
-			patchRequest.execute();			
-
-		}
-		catch (IOException ioe) {
-			_log.error(ioe, ioe);
-
-			throw new SystemException(ioe);
-		}		
-	}
-	
-	/**
-	 * Move Object in the google drive
-	 * 
-	 * This method is also called at updateing the object as well. 
-	 * This method is responsible for changing name and moving object.
-	 */
-	@SuppressWarnings("unchecked")
-	@Override
-	public <T extends ExtRepositoryObject> T moveExtRepositoryObject(
-			ExtRepositoryObjectType<T> extRepositoryObjectType,
-			String extRepositoryObjectKey, String newExtRepositoryFolderKey,
-			String newTitle)
+	protected void renameObject(String extRepositoryObjectKey, String newTitle)
 		throws PortalException {
 
 		try {
 			Drive drive = getDrive();
 
 			File file = getFile(drive, extRepositoryObjectKey);
-			
+
+			file.setOriginalFilename(newTitle);
+			file.setTitle(newTitle);
+
+			// Rename the file.
+			Files.Patch patchRequest = drive.files().patch(file.getId(), file);
+			patchRequest.setFields("title,originalFilename");
+
+			patchRequest.execute();
+
+		}
+		catch (IOException ioe) {
+			_log.error(ioe, ioe);
+
+			throw new SystemException(ioe);
+		}
+	}
+
+	/**
+	 * Move Object in the google drive This method is also called at updateing
+	 * the object as well. This method is responsible for changing name and
+	 * moving object.
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T extends ExtRepositoryObject> T moveExtRepositoryObject(
+		ExtRepositoryObjectType<T> extRepositoryObjectType,
+		String extRepositoryObjectKey, String newExtRepositoryFolderKey,
+		String newTitle)
+		throws PortalException {
+
+		try {
+			Drive drive = getDrive();
+
+			File file = getFile(drive, extRepositoryObjectKey);
+
 			// Change Name
-			if(!file.getTitle().equals(newTitle)) {
+			if (!file.getTitle().equals(newTitle)) {
 				renameObject(extRepositoryObjectKey, newTitle);
 			}
 
@@ -854,8 +869,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			List<ParentReference> parentReferences = file.getParents();
 
 			for (ParentReference parentReference : parentReferences) {
-				Drive.Parents.Delete driveParentsDelete = driveParents.delete(
-					file.getId(), parentReference.getId());
+				Drive.Parents.Delete driveParentsDelete =
+					driveParents.delete(file.getId(), parentReference.getId());
 
 				driveParentsDelete.execute();
 			}
@@ -864,16 +879,16 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 			parentReference.setId(newExtRepositoryFolderKey);
 
-			Drive.Parents.Insert driveParentsInsert = driveParents.insert(
-				file.getId(), parentReference);
+			Drive.Parents.Insert driveParentsInsert =
+				driveParents.insert(file.getId(), parentReference);
 
 			driveParentsInsert.execute();
 
 			if (extRepositoryObjectType.equals(ExtRepositoryObjectType.FILE)) {
-				return (T)new GoogleDriveFileEntry(file);
+				return (T) new GoogleDriveFileEntry(file);
 			}
 
-			return (T)new GoogleDriveFolder(file, getRootFolderKey());
+			return (T) new GoogleDriveFolder(file, getRootFolderKey());
 		}
 		catch (IOException ioe) {
 			_log.error(ioe, ioe);
@@ -892,8 +907,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	 * @throws SearchException
 	 */
 	protected String getSearchQuery(
-			String keywords, long[] folderIds,
-			ExtRepositoryQueryMapper extRepositoryQueryMapper)
+		String keywords, long[] folderIds,
+		ExtRepositoryQueryMapper extRepositoryQueryMapper)
 		throws SearchException {
 
 		StringBundler sb = new StringBundler();
@@ -922,11 +937,11 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 		return sb.toString();
 	}
-	
+
 	@Override
 	public List<ExtRepositorySearchResult<?>> search(
-			SearchContext searchContext, Query query,
-			ExtRepositoryQueryMapper extRepositoryQueryMapper)
+		SearchContext searchContext, Query query,
+		ExtRepositoryQueryMapper extRepositoryQueryMapper)
 		throws PortalException {
 
 		try {
@@ -951,13 +966,12 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 			for (File file : files) {
 				if (_FOLDER_MIME_TYPE.equals(file.getMimeType())) {
-					GoogleDriveFolder googleDriveFolder = new GoogleDriveFolder(
-						file, getRootFolderKey());
+					GoogleDriveFolder googleDriveFolder =
+						new GoogleDriveFolder(file, getRootFolderKey());
 
-					ExtRepositorySearchResult<GoogleDriveFolder>
-						extRepositorySearchResult =
-							new ExtRepositorySearchResult<>(
-								googleDriveFolder, 1.0f, StringPool.BLANK);
+					ExtRepositorySearchResult<GoogleDriveFolder> extRepositorySearchResult =
+						new ExtRepositorySearchResult<>(
+							googleDriveFolder, 1.0f, StringPool.BLANK);
 
 					extRepositorySearchResults.add(extRepositorySearchResult);
 				}
@@ -965,10 +979,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 					GoogleDriveFileEntry googleDriveFileEntry =
 						new GoogleDriveFileEntry(file);
 
-					ExtRepositorySearchResult<GoogleDriveFileEntry>
-						extRepositorySearchResult =
-							new ExtRepositorySearchResult<>(
-								googleDriveFileEntry, 1.0f, StringPool.BLANK);
+					ExtRepositorySearchResult<GoogleDriveFileEntry> extRepositorySearchResult =
+						new ExtRepositorySearchResult<>(
+							googleDriveFileEntry, 1.0f, StringPool.BLANK);
 
 					extRepositorySearchResults.add(extRepositorySearchResult);
 				}
@@ -984,65 +997,63 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	}
 
 	/**
-	 * Update mimeType in Google Doc Metadata
+	 * Detect extension from input stream
 	 * 
-	 * @param extRepositoryFileEntryKey
 	 * @param mimeType
-	 * @throws PortalException
+	 * @return
 	 */
-	protected void updateMimeTypeObject(File file, String mimeType) 
-			throws PortalException {
-		try {
-			Drive drive = getDrive();
+	protected String getExtension(String mimeType) {
 
-			file.setMimeType(mimeType);
-
-			// Rename the file.
-			Files.Patch patchRequest = drive.files().patch(file.getId(), file);
-			patchRequest.setFields("mimeType");
-
-			patchRequest.execute();			
-
+		Set<String> extensions = MimeTypesUtil.getExtensions(mimeType);
+		if (extensions.size() == 0) {
+			_log.error(
+				"There are no matched mime type. Mime type was : " + mimeType);
+			return "";
 		}
-		catch (IOException ioe) {
-			_log.error(ioe, ioe);
 
-			throw new SystemException(ioe);
-		}		
+		if (_log.isDebugEnabled()) {
+			_log.debug("Extensions : " + extensions);
+		}
+
+		return extensions.stream().findFirst().get();
 	}
-	
+
 	@Override
 	public ExtRepositoryFileEntry updateExtRepositoryFileEntry(
-			String extRepositoryFileEntryKey, String mimeType,
-			InputStream inputStream)
+		String extRepositoryFileEntryKey, String mimeType,
+		InputStream inputStream)
 		throws PortalException {
 
 		try {
 			Drive drive = getDrive();
-			boolean changeMimeType = false;
-			
+
 			Drive.Files driveFiles = drive.files();
 
 			File file = getFile(drive, extRepositoryFileEntryKey);
-			
-			//Check if mime type has been changed.
-//			if(!file.getMimeType().equals(mimeType)) {
-//				changeMimeType = true;
-//			}
-			
-			InputStreamContent inputStreamContent = new InputStreamContent(
-				mimeType, inputStream);
+
+			String fileExtension = getExtension(mimeType);
+
+			// Check if mime type has been changed.
+			if (!file.getMimeType().equals(mimeType)) {
+				// Both mime type and extensions must be udpated
+				file.setMimeType(mimeType);
+				file.setFullFileExtension(fileExtension);
+				file.setFileExtension(fileExtension);
+			}
+
+			InputStreamContent inputStreamContent =
+				new InputStreamContent(mimeType, inputStream);
 
 			Drive.Files.Update driveFilesUpdate = driveFiles.update(
 				extRepositoryFileEntryKey, file, inputStreamContent);
 
+			// Update Mime type and extention for Liferay side.
 			file = driveFilesUpdate.execute();
-
-			//Update mimeType in Google Doc Metadata after updated the date.
-//			if(changeMimeType) {
-//				updateMimeTypeObject(file, mimeType);
-//				file.setMimeType(mimeType);
-//			}
+			file.setFileExtension(fileExtension);
+			file.setFullFileExtension(fileExtension);
+			file.setMimeType(mimeType);
+			file.setOriginalFilename(file.getTitle() + StringPool.COMMA + fileExtension);
+			file.setTitle(file.getTitle() + StringPool.COMMA + fileExtension);
 
 			return new GoogleDriveFileEntry(file);
 		}
@@ -1052,19 +1063,19 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			throw new SystemException(ioe);
 		}
 	}
-	
+
 	@Override
 	public FileEntry updateFileEntry(
-			long userId, long fileEntryId, String sourceFileName,
-			String mimeType, String title, String description, String changeLog,
-			boolean majorVersion, InputStream inputStream, long size,
-			ServiceContext serviceContext)
+		long userId, long fileEntryId, String sourceFileName, String mimeType,
+		String title, String description, String changeLog,
+		boolean majorVersion, InputStream inputStream, long size,
+		ServiceContext serviceContext)
 		throws PortalException {
 
 		boolean needsCheckIn = false;
 
-		String extRepositoryFileEntryKey = getExtRepositoryObjectKey(
-			fileEntryId);
+		String extRepositoryFileEntryKey =
+			getExtRepositoryObjectKey(fileEntryId);
 
 		try {
 			ExtRepositoryFileEntry extRepositoryFileEntry =
@@ -1072,22 +1083,19 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 					ExtRepositoryObjectType.FILE, extRepositoryFileEntryKey);
 
 			if (!isCheckedOut(extRepositoryFileEntry)) {
-				checkOutExtRepositoryFileEntry(
-					extRepositoryFileEntryKey);
+				checkOutExtRepositoryFileEntry(extRepositoryFileEntryKey);
 
 				needsCheckIn = true;
 			}
 
 			if (inputStream != null) {
-				extRepositoryFileEntry =
-					updateExtRepositoryFileEntry(
-						extRepositoryFileEntryKey, mimeType, inputStream);
+				extRepositoryFileEntry = updateExtRepositoryFileEntry(
+					extRepositoryFileEntryKey, mimeType, inputStream);
 			}
 
 			if (!title.equals(extRepositoryFileEntry.getTitle())) {
 				ExtRepositoryFolder folder =
-					getExtRepositoryParentFolder(
-						extRepositoryFileEntry);
+					getExtRepositoryParentFolder(extRepositoryFileEntry);
 
 				extRepositoryFileEntry = moveExtRepositoryObject(
 					ExtRepositoryObjectType.FILE, extRepositoryFileEntryKey,
@@ -1097,7 +1105,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 					ExtRepositoryAdapterCache.getInstance();
 
 				extRepositoryAdapterCache.get(
-						extRepositoryFileEntry.getExtRepositoryModelKey());
+					extRepositoryFileEntry.getExtRepositoryModelKey());
 				extRepositoryAdapterCache.clear();
 
 				repositoryEntryLocalService.updateRepositoryEntry(
@@ -1124,13 +1132,11 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			throw e;
 		}
 	}
-	
+
 	@SuppressWarnings("unchecked")
-	protected <T extends ExtRepositoryObjectAdapter<?>> T
-			_toExtRepositoryObjectAdapter(
-				ExtRepositoryObjectAdapterType<T>
-					extRepositoryObjectAdapterType,
-				ExtRepositoryObject extRepositoryObject)
+	protected <T extends ExtRepositoryObjectAdapter<?>> T _toExtRepositoryObjectAdapter(
+		ExtRepositoryObjectAdapterType<T> extRepositoryObjectAdapterType,
+		ExtRepositoryObject extRepositoryObject)
 		throws PortalException {
 
 		ExtRepositoryAdapterCache extRepositoryAdapterCache =
@@ -1143,12 +1149,12 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			extRepositoryAdapterCache.get(extRepositoryModelKey);
 
 		if (extRepositoryObjectAdapter == null) {
-			RepositoryEntry repositoryEntry = getRepositoryEntry(
-				extRepositoryModelKey);
+			RepositoryEntry repositoryEntry =
+				getRepositoryEntry(extRepositoryModelKey);
 
 			if (extRepositoryObject instanceof ExtRepositoryFolder) {
 				ExtRepositoryFolder extRepositoryFolder =
-					(ExtRepositoryFolder)extRepositoryObject;
+					(ExtRepositoryFolder) extRepositoryObject;
 
 				extRepositoryObjectAdapter = new ExtRepositoryFolderAdapter(
 					this, repositoryEntry.getRepositoryEntryId(),
@@ -1156,7 +1162,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			}
 			else {
 				ExtRepositoryFileEntry extRepositoryFileEntry =
-					(ExtRepositoryFileEntry)extRepositoryObject;
+					(ExtRepositoryFileEntry) extRepositoryObject;
 
 				extRepositoryObjectAdapter = new ExtRepositoryFileEntryAdapter(
 					this, repositoryEntry.getRepositoryEntryId(),
@@ -1167,41 +1173,36 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			extRepositoryAdapterCache.put(extRepositoryObjectAdapter);
 		}
 
-		if (extRepositoryObjectAdapterType ==
-				ExtRepositoryObjectAdapterType.FILE) {
+		if (extRepositoryObjectAdapterType == ExtRepositoryObjectAdapterType.FILE) {
 
-			if (!(extRepositoryObjectAdapter instanceof
-					ExtRepositoryFileEntryAdapter)) {
+			if (!(extRepositoryObjectAdapter instanceof ExtRepositoryFileEntryAdapter)) {
 
 				throw new NoSuchFileEntryException(
 					"External repository object is not a file " +
 						extRepositoryObject);
 			}
 		}
-		else if (extRepositoryObjectAdapterType ==
-					ExtRepositoryObjectAdapterType.FOLDER) {
+		else if (extRepositoryObjectAdapterType == ExtRepositoryObjectAdapterType.FOLDER) {
 
-			if (!(extRepositoryObjectAdapter instanceof
-					ExtRepositoryFolderAdapter)) {
+			if (!(extRepositoryObjectAdapter instanceof ExtRepositoryFolderAdapter)) {
 
 				throw new NoSuchFolderException(
 					"External repository object is not a folder " +
 						extRepositoryObject);
 			}
 		}
-		else if (extRepositoryObjectAdapterType !=
-					ExtRepositoryObjectAdapterType.OBJECT) {
+		else if (extRepositoryObjectAdapterType != ExtRepositoryObjectAdapterType.OBJECT) {
 
 			throw new IllegalArgumentException(
 				"Unsupported repository object type " +
 					extRepositoryObjectAdapterType);
 		}
 
-		return (T)extRepositoryObjectAdapter;
-	}	
-	
+		return (T) extRepositoryObjectAdapter;
+	}
+
 	/**
-	 * Add File 
+	 * Add File
 	 * 
 	 * @param extRepositoryParentFolderKey
 	 * @param mimeType
@@ -1212,8 +1213,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	 * @throws PortalException
 	 */
 	protected File addFile(
-			String extRepositoryParentFolderKey, String mimeType, String title,
-			String description, InputStream inputStream)
+		String extRepositoryParentFolderKey, String mimeType, String title,
+		String description, InputStream inputStream)
 		throws PortalException {
 
 		try {
@@ -1226,8 +1227,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 			Drive.Files driveFiles = drive.files();
 
-			File extRepositoryParentFolderFile = getFile(
-				drive, extRepositoryParentFolderKey);
+			File extRepositoryParentFolderFile =
+				getFile(drive, extRepositoryParentFolderKey);
 
 			ParentReference parentReference = new ParentReference();
 
@@ -1238,11 +1239,11 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			file.setTitle(title);
 
 			if (inputStream != null) {
-				InputStreamContent inputStreamContent = new InputStreamContent(
-					mimeType, inputStream);
+				InputStreamContent inputStreamContent =
+					new InputStreamContent(mimeType, inputStream);
 
-				Drive.Files.Insert driveFilesInsert = driveFiles.insert(
-					file, inputStreamContent);
+				Drive.Files.Insert driveFilesInsert =
+					driveFiles.insert(file, inputStreamContent);
 
 				return driveFilesInsert.execute();
 			}
@@ -1257,8 +1258,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 			throw new SystemException(ioe);
 		}
-	}	
-	
+	}
+
 	/**
 	 * Get File information
 	 * 
@@ -1268,7 +1269,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	 * @throws IOException
 	 */
 	protected File getFile(Drive drive, String extRepositoryObjectKey)
-			throws IOException {
+		throws IOException {
 
 		GoogleDriveCache googleDriveCache = GoogleDriveCache.getInstance();
 
@@ -1277,8 +1278,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 		if (file == null) {
 			Drive.Files driveFiles = drive.files();
 
-			Drive.Files.Get driveFilesGet = driveFiles.get(
-				extRepositoryObjectKey);
+			Drive.Files.Get driveFilesGet =
+				driveFiles.get(extRepositoryObjectKey);
 
 			file = driveFilesGet.execute();
 
@@ -1289,11 +1290,11 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 	}
 
 	private static final String _FOLDER_MIME_TYPE =
-			"application/vnd.google-apps.folder";
-	
+		"application/vnd.google-apps.folder";
+
 	private ThreadLocal<GoogleDriveSession> _googleDriveSessionThreadLocal =
-			new AutoResetThreadLocal<>(Drive.class.getName());
-	
+		new AutoResetThreadLocal<>(Drive.class.getName());
+
 	private static final String _CONFIGURATION_WS = "GOOGLEDRIVE_CONFIG";
 
 	private static final String _GOOGLE_CLIENT_ID = "GOOGLE_CLIENT_ID";
@@ -1304,26 +1305,26 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 
 	private static final String _GOOGLE_REFRESH_TOKEN = "GOOGLE_REFRESH_TOKEN";
 
-	private static final String[] _SUPPORTED_CONFIGURATIONS = { _CONFIGURATION_WS };
-
-	private static final String[][] _SUPPORTED_PARAMETERS = { 
-		{ 
-			_GOOGLE_CLIENT_ID, 
-			_GOOGLE_CLIENT_SECRET, 
-			_GOOGLE_ACCESS_TOKEN, 
-			_GOOGLE_REFRESH_TOKEN 
-		} 
+	private static final String[] _SUPPORTED_CONFIGURATIONS = {
+		_CONFIGURATION_WS
 	};
-	
+
+	private static final String[][] _SUPPORTED_PARAMETERS = {
+		{
+			_GOOGLE_CLIENT_ID, _GOOGLE_CLIENT_SECRET, _GOOGLE_ACCESS_TOKEN,
+			_GOOGLE_REFRESH_TOKEN
+		}
+	};
+
 	private String _googleClientId;
 
 	private String _googleClientSecret;
-	
-	private String _googleAccessToken;	
+
+	private String _googleAccessToken;
 
 	private String _googleRefreshToken;
 
-	private static final Log _log = LogFactoryUtil.getLog(
-			GoogleDriveRepository.class);
+	private static final Log _log =
+		LogFactoryUtil.getLog(GoogleDriveRepository.class);
 
 }
