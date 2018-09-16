@@ -36,6 +36,7 @@ import com.liferay.document.library.kernel.exception.NoSuchFolderException;
 import com.liferay.document.library.repository.external.CredentialsProvider;
 import com.liferay.document.library.repository.external.ExtRepository;
 import com.liferay.document.library.repository.external.ExtRepositoryAdapter;
+import com.liferay.document.library.repository.external.ExtRepositoryAdapterCache;
 import com.liferay.document.library.repository.external.ExtRepositoryFileEntry;
 import com.liferay.document.library.repository.external.ExtRepositoryFileVersion;
 import com.liferay.document.library.repository.external.ExtRepositoryFileVersionDescriptor;
@@ -43,17 +44,24 @@ import com.liferay.document.library.repository.external.ExtRepositoryFolder;
 import com.liferay.document.library.repository.external.ExtRepositoryObject;
 import com.liferay.document.library.repository.external.ExtRepositoryObjectType;
 import com.liferay.document.library.repository.external.ExtRepositorySearchResult;
+import com.liferay.document.library.repository.external.model.ExtRepositoryFileEntryAdapter;
+import com.liferay.document.library.repository.external.model.ExtRepositoryFolderAdapter;
+import com.liferay.document.library.repository.external.model.ExtRepositoryObjectAdapter;
+import com.liferay.document.library.repository.external.model.ExtRepositoryObjectAdapterType;
 import com.liferay.document.library.repository.external.search.ExtRepositoryQueryMapper;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.exception.SystemException;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.model.RepositoryEntry;
 import com.liferay.portal.kernel.model.User;
+import com.liferay.portal.kernel.repository.model.FileEntry;
 import com.liferay.portal.kernel.search.Query;
 import com.liferay.portal.kernel.search.SearchContext;
 import com.liferay.portal.kernel.search.SearchException;
 import com.liferay.portal.kernel.security.auth.PrincipalException;
 import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
+import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.servlet.PortalSessionThreadLocal;
 import com.liferay.portal.kernel.util.AutoResetThreadLocal;
 import com.liferay.portal.kernel.util.StringBundler;
@@ -1044,6 +1052,153 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter implements ExtRe
 			throw new SystemException(ioe);
 		}
 	}
+	
+	@Override
+	public FileEntry updateFileEntry(
+			long userId, long fileEntryId, String sourceFileName,
+			String mimeType, String title, String description, String changeLog,
+			boolean majorVersion, InputStream inputStream, long size,
+			ServiceContext serviceContext)
+		throws PortalException {
+
+		boolean needsCheckIn = false;
+
+		String extRepositoryFileEntryKey = getExtRepositoryObjectKey(
+			fileEntryId);
+
+		try {
+			ExtRepositoryFileEntry extRepositoryFileEntry =
+				getExtRepositoryObject(
+					ExtRepositoryObjectType.FILE, extRepositoryFileEntryKey);
+
+			if (!isCheckedOut(extRepositoryFileEntry)) {
+				checkOutExtRepositoryFileEntry(
+					extRepositoryFileEntryKey);
+
+				needsCheckIn = true;
+			}
+
+			if (inputStream != null) {
+				extRepositoryFileEntry =
+					updateExtRepositoryFileEntry(
+						extRepositoryFileEntryKey, mimeType, inputStream);
+			}
+
+			if (!title.equals(extRepositoryFileEntry.getTitle())) {
+				ExtRepositoryFolder folder =
+					getExtRepositoryParentFolder(
+						extRepositoryFileEntry);
+
+				extRepositoryFileEntry = moveExtRepositoryObject(
+					ExtRepositoryObjectType.FILE, extRepositoryFileEntryKey,
+					folder.getExtRepositoryModelKey(), title);
+
+				ExtRepositoryAdapterCache extRepositoryAdapterCache =
+					ExtRepositoryAdapterCache.getInstance();
+
+				extRepositoryAdapterCache.get(
+						extRepositoryFileEntry.getExtRepositoryModelKey());
+				extRepositoryAdapterCache.clear();
+
+				repositoryEntryLocalService.updateRepositoryEntry(
+					fileEntryId,
+					extRepositoryFileEntry.getExtRepositoryModelKey());
+			}
+
+			if (needsCheckIn) {
+				checkInExtRepositoryFileEntry(
+					extRepositoryFileEntry.getExtRepositoryModelKey(),
+					majorVersion, changeLog);
+
+				needsCheckIn = false;
+			}
+
+			return _toExtRepositoryObjectAdapter(
+				ExtRepositoryObjectAdapterType.FILE, extRepositoryFileEntry);
+		}
+		catch (PortalException | SystemException e) {
+			if (needsCheckIn) {
+				cancelCheckOut(extRepositoryFileEntryKey);
+			}
+
+			throw e;
+		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	protected <T extends ExtRepositoryObjectAdapter<?>> T
+			_toExtRepositoryObjectAdapter(
+				ExtRepositoryObjectAdapterType<T>
+					extRepositoryObjectAdapterType,
+				ExtRepositoryObject extRepositoryObject)
+		throws PortalException {
+
+		ExtRepositoryAdapterCache extRepositoryAdapterCache =
+			ExtRepositoryAdapterCache.getInstance();
+
+		String extRepositoryModelKey =
+			extRepositoryObject.getExtRepositoryModelKey();
+
+		ExtRepositoryObjectAdapter<?> extRepositoryObjectAdapter =
+			extRepositoryAdapterCache.get(extRepositoryModelKey);
+
+		if (extRepositoryObjectAdapter == null) {
+			RepositoryEntry repositoryEntry = getRepositoryEntry(
+				extRepositoryModelKey);
+
+			if (extRepositoryObject instanceof ExtRepositoryFolder) {
+				ExtRepositoryFolder extRepositoryFolder =
+					(ExtRepositoryFolder)extRepositoryObject;
+
+				extRepositoryObjectAdapter = new ExtRepositoryFolderAdapter(
+					this, repositoryEntry.getRepositoryEntryId(),
+					repositoryEntry.getUuid(), extRepositoryFolder);
+			}
+			else {
+				ExtRepositoryFileEntry extRepositoryFileEntry =
+					(ExtRepositoryFileEntry)extRepositoryObject;
+
+				extRepositoryObjectAdapter = new ExtRepositoryFileEntryAdapter(
+					this, repositoryEntry.getRepositoryEntryId(),
+					repositoryEntry.getUuid(), extRepositoryFileEntry);
+
+			}
+
+			extRepositoryAdapterCache.put(extRepositoryObjectAdapter);
+		}
+
+		if (extRepositoryObjectAdapterType ==
+				ExtRepositoryObjectAdapterType.FILE) {
+
+			if (!(extRepositoryObjectAdapter instanceof
+					ExtRepositoryFileEntryAdapter)) {
+
+				throw new NoSuchFileEntryException(
+					"External repository object is not a file " +
+						extRepositoryObject);
+			}
+		}
+		else if (extRepositoryObjectAdapterType ==
+					ExtRepositoryObjectAdapterType.FOLDER) {
+
+			if (!(extRepositoryObjectAdapter instanceof
+					ExtRepositoryFolderAdapter)) {
+
+				throw new NoSuchFolderException(
+					"External repository object is not a folder " +
+						extRepositoryObject);
+			}
+		}
+		else if (extRepositoryObjectAdapterType !=
+					ExtRepositoryObjectAdapterType.OBJECT) {
+
+			throw new IllegalArgumentException(
+				"Unsupported repository object type " +
+					extRepositoryObjectAdapterType);
+		}
+
+		return (T)extRepositoryObjectAdapter;
+	}	
 	
 	/**
 	 * Add File 
