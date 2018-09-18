@@ -723,45 +723,51 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 	 * @throws PortalException
 	 */
 	@SuppressWarnings("unchecked")
-	protected GoogleDriveSession getGoogleDriveSession()
+	synchronized protected GoogleDriveSession getGoogleDriveSession()
 		throws PortalException {
 
 		GoogleDriveSession googleDriveSession = null;
 
 		HttpSession httpSession = PortalSessionThreadLocal.getHttpSession();
 
-		if (httpSession != null) {
-			TransientValue<GoogleDriveSession> transientValue =
-				(TransientValue<GoogleDriveSession>) httpSession.getAttribute(
-					GoogleDriveSession.class.getName());
+		if(httpSession == null) {
+			throw new PortalException("Http Session is null.");
+		}
+		
+		Object obj = httpSession.getAttribute(
+			GoogleDriveSession.class.getName());
 
-			if (transientValue != null) {
-				googleDriveSession = transientValue.getValue();
+		if (obj != null) {
+			try {
+				TransientValue<GoogleDriveSession> transientValue =
+					(TransientValue<GoogleDriveSession>)obj;
+	
+				if (transientValue != null) {
+					googleDriveSession = transientValue.getValue();
+					
+					if(_log.isDebugEnabled()) {
+						_log.debug("Return googleDriveSession");
+					}
+					return googleDriveSession;
+				}
+				
+			} catch(ClassCastException e) {
+				_log.info("Google Drive Session has not been not stored. Restore session.");
 			}
 		}
-		else {
-			googleDriveSession = _googleDriveSessionThreadLocal.get();
-		}
 
-		if (googleDriveSession != null) {
-			return googleDriveSession;
-		}
+		_log.info("Restore Googld Drive Session");
 
 		try {
 			googleDriveSession = buildGoogleDriveSession();
+			
+			httpSession.setAttribute(
+				GoogleDriveSession.class.getName(),
+				new TransientValue<GoogleDriveSession>(googleDriveSession));					
 		}
 		catch (Exception e) {
 			throw new PrincipalException(e);
-		}
-
-		if (httpSession != null) {
-			httpSession.setAttribute(
-				GoogleDriveSession.class.getName(),
-				new TransientValue<GoogleDriveSession>(googleDriveSession));
-		}
-		else {
-			_googleDriveSessionThreadLocal.set(googleDriveSession);
-		}
+		}				
 
 		return googleDriveSession;
 	}
@@ -1291,9 +1297,6 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 	private static final String _FOLDER_MIME_TYPE =
 		"application/vnd.google-apps.folder";
-
-	private ThreadLocal<GoogleDriveSession> _googleDriveSessionThreadLocal =
-		new AutoResetThreadLocal<>(Drive.class.getName());
 
 	private static final String _CONFIGURATION_WS = "GOOGLEDRIVE_CONFIG";
 
