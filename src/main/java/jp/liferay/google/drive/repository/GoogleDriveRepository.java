@@ -81,6 +81,7 @@ import java.util.Set;
 
 import javax.servlet.http.HttpSession;
 
+import jp.liferay.google.drive.api.GoogleDriveSession;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileEntry;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersion;
 import jp.liferay.google.drive.repository.model.GoogleDriveFolder;
@@ -729,36 +730,39 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 		HttpSession httpSession = PortalSessionThreadLocal.getHttpSession();
 
-		if(httpSession == null) {
-			_log.info("Http Session is null. Generate a new Google Drive Session");
+		if (httpSession == null) {
+			_log.info(
+				"Http Session is null. Generate a new Google Drive Session");
 			try {
 				googleDriveSession = buildGoogleDriveSession();
 				return googleDriveSession;
 			}
 			catch (Exception e) {
 				throw new PrincipalException(e);
-			}				
+			}
 		}
-		
-		Object obj = httpSession.getAttribute(
-			GoogleDriveSession.class.getName());
+
+		Object obj =
+			httpSession.getAttribute(GoogleDriveSession.class.getName());
 
 		if (obj != null) {
 			try {
 				TransientValue<GoogleDriveSession> transientValue =
-					(TransientValue<GoogleDriveSession>)obj;
-	
+					(TransientValue<GoogleDriveSession>) obj;
+
 				if (transientValue != null) {
 					googleDriveSession = transientValue.getValue();
-					
-					if(_log.isDebugEnabled()) {
+
+					if (_log.isDebugEnabled()) {
 						_log.debug("Return googleDriveSession");
 					}
 					return googleDriveSession;
 				}
-				
-			} catch(ClassCastException e) {
-				_log.info("Google Drive Session has not been not stored. Restore session.");
+
+			}
+			catch (ClassCastException e) {
+				_log.info(
+					"Google Drive Session has not been not stored. Restore session.");
 			}
 		}
 
@@ -766,14 +770,14 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 		try {
 			googleDriveSession = buildGoogleDriveSession();
-			
+
 			httpSession.setAttribute(
 				GoogleDriveSession.class.getName(),
-				new TransientValue<GoogleDriveSession>(googleDriveSession));					
+				new TransientValue<GoogleDriveSession>(googleDriveSession));
 		}
 		catch (Exception e) {
 			throw new PrincipalException(e);
-		}				
+		}
 
 		return googleDriveSession;
 	}
@@ -950,6 +954,37 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		return sb.toString();
 	}
 
+	protected List<File> searchDrive(Drive drive, SearchContext searchContext)
+		throws IOException {
+
+		List<File> googleDriveFolderList = new ArrayList<>();
+
+		String pageToken = null;
+
+		String searchQuery =
+			"fullText contains " + "'" + searchContext.getKeywords() + "'";
+		do {
+			FileList result;
+			result = drive.files().list()
+						.setQ(searchQuery)
+						.setPageToken(pageToken)
+						.execute();
+
+			googleDriveFolderList.addAll(result.getItems());
+
+			pageToken = result.getNextPageToken();
+		}
+		while (pageToken != null);
+
+		if(_log.isDebugEnabled()) {
+			for(File file : googleDriveFolderList) {
+				_log.debug("Found file -> " + file.getTitle());
+			}
+		}
+
+		return googleDriveFolderList;
+	}
+
 	@Override
 	public List<ExtRepositorySearchResult<?>> search(
 		SearchContext searchContext, Query query,
@@ -959,24 +994,13 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		try {
 			Drive drive = getDrive();
 
-			Drive.Files driveFiles = drive.files();
-
-			Drive.Files.List driveFilesList = driveFiles.list();
-
-			String searchQuery = getSearchQuery(
-				searchContext.getKeywords(), searchContext.getFolderIds(),
-				extRepositoryQueryMapper);
-
-			driveFilesList.setQ(searchQuery);
-
-			FileList fileList = driveFilesList.execute();
-
-			List<File> files = fileList.getItems();
+			List<File> files = searchDrive(drive, searchContext);
 
 			List<ExtRepositorySearchResult<?>> extRepositorySearchResults =
 				new ArrayList<>(files.size());
 
 			for (File file : files) {
+				
 				if (_FOLDER_MIME_TYPE.equals(file.getMimeType())) {
 					GoogleDriveFolder googleDriveFolder =
 						new GoogleDriveFolder(file, getRootFolderKey());
@@ -1064,7 +1088,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			file.setFileExtension(fileExtension);
 			file.setFullFileExtension(fileExtension);
 			file.setMimeType(mimeType);
-			file.setOriginalFilename(file.getTitle() + StringPool.COMMA + fileExtension);
+			file.setOriginalFilename(
+				file.getTitle() + StringPool.COMMA + fileExtension);
 			file.setTitle(file.getTitle() + StringPool.COMMA + fileExtension);
 
 			return new GoogleDriveFileEntry(file);

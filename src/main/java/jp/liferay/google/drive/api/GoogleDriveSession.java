@@ -12,12 +12,14 @@
  * details.
  */
 
-package jp.liferay.google.drive.repository;
+package jp.liferay.google.drive.api;
 
 import com.google.api.services.drive.Drive;
 
 /**
- * @author Sergio Gonzรกlez
+ * GoogleDriveSession
+ * 
+ * @author Sergio González
  */
 public class GoogleDriveSession {
 
