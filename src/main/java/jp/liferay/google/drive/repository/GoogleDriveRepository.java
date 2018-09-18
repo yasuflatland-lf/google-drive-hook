@@ -63,7 +63,6 @@ import com.liferay.portal.kernel.security.auth.PrincipalException;
 import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.servlet.PortalSessionThreadLocal;
-import com.liferay.portal.kernel.util.AutoResetThreadLocal;
 import com.liferay.portal.kernel.util.MimeTypesUtil;
 import com.liferay.portal.kernel.util.StringBundler;
 import com.liferay.portal.kernel.util.StringPool;
@@ -731,7 +730,14 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		HttpSession httpSession = PortalSessionThreadLocal.getHttpSession();
 
 		if(httpSession == null) {
-			throw new PortalException("Http Session is null.");
+			_log.info("Http Session is null. Generate a new Google Drive Session");
+			try {
+				googleDriveSession = buildGoogleDriveSession();
+				return googleDriveSession;
+			}
+			catch (Exception e) {
+				throw new PrincipalException(e);
+			}				
 		}
 		
 		Object obj = httpSession.getAttribute(
