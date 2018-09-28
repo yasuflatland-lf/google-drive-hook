@@ -15,6 +15,8 @@
 package jp.liferay.google.drive.repository;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestFactory;
@@ -84,6 +86,7 @@ import javax.servlet.http.HttpSession;
 import jp.liferay.google.drive.api.GoogleDriveSession;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileEntry;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersion;
+import jp.liferay.google.drive.repository.model.GoogleDriveFileVersionAlternative;
 import jp.liferay.google.drive.repository.model.GoogleDriveFolder;
 
 /**
@@ -355,8 +358,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		ExtRepositoryFileEntry extRepositoryFileEntry)
 		throws PortalException {
 
+		Drive drive = null;
+
 		try {
-			Drive drive = getDrive();
+			drive = getDrive();
 
 			Drive.Revisions driveRevisions = drive.revisions();
 
@@ -384,10 +389,38 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 			return extRepositoryFileVersions;
 		}
-		catch (IOException ioe) {
-			_log.error(ioe, ioe);
+		catch (GoogleJsonResponseException e) {
 
-			throw new SystemException(ioe);
+			File file;
+			try {
+				file = getFile(
+					drive, extRepositoryFileEntry.getExtRepositoryModelKey());
+			}
+			catch (IOException e1) {
+				_log.error(e1, e1);
+				throw new SystemException(e1);
+			}
+
+			GoogleJsonError ge = e.getDetails();
+			_log.info(
+				"file name : " + file.getTitle() + " path : <" +
+					file.getDefaultOpenWithLink() + "> code : " + ge.getCode() +
+					" Message : " + ge.getMessage());
+
+			List<ExtRepositoryFileVersion> extRepositoryFileVersions =
+				new ArrayList<>();
+
+			extRepositoryFileVersions.add(
+				new GoogleDriveFileVersionAlternative(
+					file, extRepositoryFileEntry.getExtRepositoryModelKey(),
+					1));
+
+			return extRepositoryFileVersions;
+		}
+		catch (IOException e) {
+			_log.error(e, e);
+
+			throw new SystemException(e);
 		}
 	}
 
@@ -976,8 +1009,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		}
 		while (pageToken != null);
 
-		if(_log.isDebugEnabled()) {
-			for(File file : googleDriveFolderList) {
+		if (_log.isDebugEnabled()) {
+			for (File file : googleDriveFolderList) {
 				_log.debug("Found file -> " + file.getTitle());
 			}
 		}
@@ -1000,7 +1033,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 				new ArrayList<>(files.size());
 
 			for (File file : files) {
-				
+
 				if (_FOLDER_MIME_TYPE.equals(file.getMimeType())) {
 					GoogleDriveFolder googleDriveFolder =
 						new GoogleDriveFolder(file, getRootFolderKey());

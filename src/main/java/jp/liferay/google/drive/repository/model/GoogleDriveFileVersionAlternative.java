@@ -14,7 +14,7 @@
 
 package jp.liferay.google.drive.repository.model;
 
-import com.google.api.services.drive.model.Revision;
+import com.google.api.services.drive.model.File;
 import com.liferay.document.library.repository.external.ExtRepositoryFileVersion;
 import com.liferay.portal.kernel.util.Digester;
 import com.liferay.portal.kernel.util.DigesterUtil;
@@ -23,22 +23,25 @@ import com.liferay.portal.kernel.util.StringBundler;
 import com.liferay.portal.kernel.util.StringPool;
 
 /**
- * Google Drive File Version
+ * Google Drive File Version Alternative
  * 
- * @author Sergio González
+ * There are file type where doesn't support versions.
+ * For those files, this class provide psudo version to display.
+ * 
+ * @author Yasuyuki Takeo
  */
-public class GoogleDriveFileVersion
+public class GoogleDriveFileVersionAlternative
 	extends GoogleDriveModel implements ExtRepositoryFileVersion {
 
-	public GoogleDriveFileVersion(
-		Revision revision, String extRepositoryFileEntryKey, int version) {
+	public GoogleDriveFileVersionAlternative(
+		File file, String extRepositoryFileEntryKey, int version) {
 
 		super(
-			revision.getModifiedDate(), revision.getId(),
-			GetterUtil.getLong(revision.getFileSize()),
-			GetterUtil.getString(revision.getLastModifyingUserName()));
+			file.getModifiedDate(), file.getId(),
+			GetterUtil.getLong(file.getFileSize()),
+			GetterUtil.getString(file.getLastModifyingUserName()));
 
-		_revision = revision;
+		_file = file;
 		_extRepositoryFileEntryKey = extRepositoryFileEntryKey;
 		_version = version + ".0";
 	}
@@ -49,7 +52,7 @@ public class GoogleDriveFileVersion
 	}
 
 	public String getDownloadURL() {
-		return GetterUtil.getString(_revision.getDownloadUrl());
+		return GetterUtil.getString(_file.getDownloadUrl());
 	}
 
 	@Override
@@ -58,7 +61,7 @@ public class GoogleDriveFileVersion
 
 		sb.append(_extRepositoryFileEntryKey);
 		sb.append(StringPool.COLON);
-		sb.append(DigesterUtil.digestHex(Digester.MD5, _revision.getId()));
+		sb.append(DigesterUtil.digestHex(Digester.MD5, _file.getId()));
 		sb.append(StringPool.COLON);
 		sb.append(_version);
 
@@ -67,7 +70,7 @@ public class GoogleDriveFileVersion
 
 	@Override
 	public String getMimeType() {
-		return GetterUtil.getString(_revision.getMimeType());
+		return GetterUtil.getString(_file.getMimeType());
 	}
 
 	@Override
@@ -76,7 +79,7 @@ public class GoogleDriveFileVersion
 	}
 
 	private String _extRepositoryFileEntryKey;
-	private Revision _revision;
+	private File _file;
 	private String _version;
 
 }
