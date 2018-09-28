@@ -371,21 +371,36 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			RevisionList revisionList = driveRevisionsList.execute();
 
 			List<Revision> revisions = revisionList.getItems();
+			Collections.reverse(revisions);
+			Revision latest = revisions.stream().findFirst().get();
 
 			List<ExtRepositoryFileVersion> extRepositoryFileVersions =
-				new ArrayList<>(revisions.size());
+				new ArrayList<>();
 
-			for (int i = 0; i < revisions.size(); i++) {
-				Revision revision = revisions.get(i);
+			extRepositoryFileVersions.add(
+				new GoogleDriveFileVersion(
+					latest, extRepositoryFileEntry.getExtRepositoryModelKey(),
+					1));
 
-				extRepositoryFileVersions.add(
-					new GoogleDriveFileVersion(
-						revision,
-						extRepositoryFileEntry.getExtRepositoryModelKey(),
-						i + 1));
-			}
-
-			Collections.reverse(extRepositoryFileVersions);
+			// Google Drive stores bunch of versions, so registering all these
+			// aren't realistic for production use due to taking too long
+			// If a user does need to retrive all versions, it should be done by
+			// a background process.
+			//
+			// List<ExtRepositoryFileVersion> extRepositoryFileVersions =
+			// new ArrayList<>(revisions.size());
+			//
+			// for (int i = 0; i < revisions.size(); i++) {
+			// Revision revision = revisions.get(i);
+			//
+			// extRepositoryFileVersions.add(
+			// new GoogleDriveFileVersion(
+			// revision,
+			// extRepositoryFileEntry.getExtRepositoryModelKey(),
+			// i + 1));
+			// }
+			//
+			// Collections.reverse(extRepositoryFileVersions);
 
 			return extRepositoryFileVersions;
 		}
