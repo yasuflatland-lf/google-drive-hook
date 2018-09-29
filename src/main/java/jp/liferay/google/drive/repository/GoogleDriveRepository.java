@@ -14,20 +14,15 @@
 
 package jp.liferay.google.drive.repository;
 
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.HttpResponse;
-import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.InputStreamContent;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.Drive.Files;
-import com.google.api.services.drive.model.About;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.ParentReference;
@@ -56,20 +51,15 @@ import com.liferay.portal.kernel.exception.SystemException;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.RepositoryEntry;
-import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.repository.model.FileEntry;
 import com.liferay.portal.kernel.search.Query;
 import com.liferay.portal.kernel.search.SearchContext;
 import com.liferay.portal.kernel.search.SearchException;
-import com.liferay.portal.kernel.security.auth.PrincipalException;
-import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
 import com.liferay.portal.kernel.service.ServiceContext;
-import com.liferay.portal.kernel.servlet.PortalSessionThreadLocal;
 import com.liferay.portal.kernel.util.MimeTypesUtil;
 import com.liferay.portal.kernel.util.StringBundler;
 import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.kernel.util.StringUtil;
-import com.liferay.portal.kernel.util.TransientValue;
 import com.liferay.portal.kernel.util.UnicodeProperties;
 import com.liferay.portal.kernel.util.Validator;
 
@@ -81,13 +71,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import javax.servlet.http.HttpSession;
-
-import jp.liferay.google.drive.api.GoogleDriveSession;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileEntry;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersion;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersionAlternative;
 import jp.liferay.google.drive.repository.model.GoogleDriveFolder;
+import jp.liferay.google.drive.sync.api.GoogleDriveSession;
+import jp.liferay.google.drive.sync.connection.GoogleDriveConnectionManager;
+import jp.liferay.google.drive.sync.connection.GoogleDriveContext;
 
 /**
  * Googold Drive Repository
@@ -162,7 +152,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		String extRepositoryFileEntryKey) {
 
 		try {
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			File file = getFile(drive, extRepositoryFileEntryKey);
 
@@ -184,7 +174,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			Drive.Files driveFiles = drive.files();
 
@@ -229,7 +219,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			Drive.Files driveFiles = drive.files();
 
@@ -285,7 +275,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			return null;
 		}
 
-		Drive drive = getDrive();
+		Drive drive = _connectionManager.getDrive();
 
 		HttpRequestFactory httpRequestFactory = drive.getRequestFactory();
 
@@ -312,7 +302,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			Drive.Revisions driveRevisions = drive.revisions();
 
@@ -361,7 +351,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		Drive drive = null;
 
 		try {
-			drive = getDrive();
+			drive = _connectionManager.getDrive();
 
 			Drive.Revisions driveRevisions = drive.revisions();
 
@@ -447,7 +437,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			File file = getFile(drive, extRepositoryObjectKey);
 
@@ -501,7 +491,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 			sb.append(_FOLDER_MIME_TYPE);
 
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			Drive.Files driveFiles = drive.files();
 
@@ -545,7 +535,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			Drive.Files driveFiles = drive.files();
 
@@ -630,7 +620,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			File file =
 				getFile(drive, extRepositoryObject.getExtRepositoryModelKey());
@@ -662,7 +652,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 	public String getRootFolderKey() {
 
 		try {
-			GoogleDriveSession googleDriveSession = getGoogleDriveSession();
+			GoogleDriveSession googleDriveSession = _connectionManager.getGoogleDriveSession();
 
 			return googleDriveSession.getRootFolderKey();
 		}
@@ -716,14 +706,15 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		CredentialsProvider credentialsProvider)
 		throws PortalException {
 
-		_googleClientId = typeSettingsProperties.getProperty(_GOOGLE_CLIENT_ID);
+		String googleClientId =
+			typeSettingsProperties.getProperty(_GOOGLE_CLIENT_ID);
 
-		_googleClientSecret =
+		String googleClientSecret =
 			typeSettingsProperties.getProperty(_GOOGLE_CLIENT_SECRET);
 
 		// At initialization, the values are always null
-		if (Validator.isNull(_googleClientId) ||
-			Validator.isNull(_googleClientSecret)) {
+		if (Validator.isNull(googleClientId) ||
+			Validator.isNull(googleClientSecret)) {
 			if (_log.isDebugEnabled()) {
 				_log.debug(
 					"Google Client ID or Google Client Secret are empty");
@@ -731,15 +722,15 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			return;
 		}
 
-		_googleAccessToken =
+		String googleAccessToken =
 			typeSettingsProperties.getProperty(_GOOGLE_ACCESS_TOKEN);
 
-		_googleRefreshToken =
+		String googleRefreshToken =
 			typeSettingsProperties.getProperty(_GOOGLE_REFRESH_TOKEN);
 
 		// At initialization, the values are always null
-		if (Validator.isNull(_googleAccessToken) ||
-			Validator.isNull(_googleRefreshToken)) {
+		if (Validator.isNull(googleAccessToken) ||
+			Validator.isNull(googleRefreshToken)) {
 			if (_log.isDebugEnabled()) {
 				_log.debug("Access Token or Refresh Token are empty");
 			}
@@ -747,130 +738,19 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		}
 
 		if (_log.isDebugEnabled()) {
-			_log.debug("Client ID     : " + _googleClientId);
-			_log.debug("Client Secret : " + _googleClientSecret);
-			_log.debug("Access Token  : " + _googleAccessToken);
-			_log.debug("Refresh Token : " + _googleRefreshToken);
+			_log.debug("Client ID     : " + googleClientId);
+			_log.debug("Client Secret : " + googleClientSecret);
+			_log.debug("Access Token  : " + googleAccessToken);
+			_log.debug("Refresh Token : " + googleRefreshToken);
 		}
 
-		getDrive();
-	}
-
-	public Drive getDrive()
-		throws PortalException {
-
-		GoogleDriveSession googleDriveSession = getGoogleDriveSession();
-
-		return googleDriveSession.getDrive();
-	}
-
-	/**
-	 * Get Google Drive Session
-	 * 
-	 * @return GoogleDriveSession
-	 * @throws PortalException
-	 */
-	@SuppressWarnings("unchecked")
-	synchronized protected GoogleDriveSession getGoogleDriveSession()
-		throws PortalException {
-
-		GoogleDriveSession googleDriveSession = null;
-
-		HttpSession httpSession = PortalSessionThreadLocal.getHttpSession();
-
-		if (httpSession == null) {
-			_log.info(
-				"Http Session is null. Generate a new Google Drive Session");
-			try {
-				googleDriveSession = buildGoogleDriveSession();
-				return googleDriveSession;
-			}
-			catch (Exception e) {
-				throw new PrincipalException(e);
-			}
-		}
-
-		Object obj =
-			httpSession.getAttribute(GoogleDriveSession.class.getName());
-
-		if (obj != null) {
-			try {
-				TransientValue<GoogleDriveSession> transientValue =
-					(TransientValue<GoogleDriveSession>) obj;
-
-				if (transientValue != null) {
-					googleDriveSession = transientValue.getValue();
-
-					if (_log.isDebugEnabled()) {
-						_log.debug("Return googleDriveSession");
-					}
-					return googleDriveSession;
-				}
-
-			}
-			catch (ClassCastException e) {
-				_log.info(
-					"Google Drive Session has not been not stored. Restore session.");
-			}
-		}
-
-		_log.info("Restore Googld Drive Session");
-
-		try {
-			googleDriveSession = buildGoogleDriveSession();
-
-			httpSession.setAttribute(
-				GoogleDriveSession.class.getName(),
-				new TransientValue<GoogleDriveSession>(googleDriveSession));
-		}
-		catch (Exception e) {
-			throw new PrincipalException(e);
-		}
-
-		return googleDriveSession;
-	}
-
-	protected GoogleDriveSession buildGoogleDriveSession()
-		throws IOException, PortalException {
-
-		long userId = PrincipalThreadLocal.getUserId();
-
-		User user = userLocalService.getUser(userId);
-
-		if (user.isDefaultUser()) {
-			throw new PrincipalException("User is not authenticated");
-		}
-
-		GoogleCredential.Builder builder = new GoogleCredential.Builder();
-
-		builder.setClientSecrets(_googleClientId, _googleClientSecret);
-
-		JacksonFactory jsonFactory = new JacksonFactory();
-
-		builder.setJsonFactory(jsonFactory);
-
-		HttpTransport httpTransport = new NetHttpTransport();
-
-		builder.setTransport(httpTransport);
-
-		GoogleCredential googleCredential = builder.build();
-
-		googleCredential.setAccessToken(_googleAccessToken);
-
-		googleCredential.setRefreshToken(_googleRefreshToken);
-
-		Drive.Builder driveBuilder =
-			new Drive.Builder(httpTransport, jsonFactory, googleCredential);
-
-		Drive drive = driveBuilder.build();
-
-		Drive.About driveAbout = drive.about();
-
-		Drive.About.Get driveAboutGet = driveAbout.get();
-
-		About about = driveAboutGet.execute();
-
-		return new GoogleDriveSession(drive, about.getRootFolderId());
+		GoogleDriveContext context = new GoogleDriveContext(
+			googleClientId, googleClientSecret, googleAccessToken,
+			googleRefreshToken);
+		
+		_connectionManager = new GoogleDriveConnectionManager(context);
+		
+		_connectionManager.getDrive();
 	}
 
 	/**
@@ -884,7 +764,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			File file = getFile(drive, extRepositoryObjectKey);
 
@@ -919,7 +799,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			File file = getFile(drive, extRepositoryObjectKey);
 
@@ -1013,10 +893,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			"fullText contains " + "'" + searchContext.getKeywords() + "'";
 		do {
 			FileList result;
-			result = drive.files().list()
-						.setQ(searchQuery)
-						.setPageToken(pageToken)
-						.execute();
+			result = drive.files().list().setQ(searchQuery).setPageToken(
+				pageToken).execute();
 
 			googleDriveFolderList.addAll(result.getItems());
 
@@ -1040,7 +918,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			List<File> files = searchDrive(drive, searchContext);
 
@@ -1109,7 +987,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			Drive.Files driveFiles = drive.files();
 
@@ -1308,7 +1186,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			file.setDescription(description);
 			file.setMimeType(mimeType);
 
-			Drive drive = getDrive();
+			Drive drive = _connectionManager.getDrive();
 
 			Drive.Files driveFiles = drive.files();
 
@@ -1398,13 +1276,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		}
 	};
 
-	private String _googleClientId;
-
-	private String _googleClientSecret;
-
-	private String _googleAccessToken;
-
-	private String _googleRefreshToken;
+	private GoogleDriveConnectionManager _connectionManager;
 
 	private static final Log _log =
 		LogFactoryUtil.getLog(GoogleDriveRepository.class);
