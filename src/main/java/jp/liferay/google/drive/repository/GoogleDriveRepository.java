@@ -52,6 +52,8 @@ import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.RepositoryEntry;
 import com.liferay.portal.kernel.repository.model.FileEntry;
+import com.liferay.portal.kernel.search.Hits;
+import com.liferay.portal.kernel.search.HitsImpl;
 import com.liferay.portal.kernel.search.Query;
 import com.liferay.portal.kernel.search.SearchContext;
 import com.liferay.portal.kernel.search.SearchException;
@@ -71,13 +73,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import jp.liferay.google.drive.repository.constants.GoogleDriveConstants;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileEntry;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersion;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersionAlternative;
 import jp.liferay.google.drive.repository.model.GoogleDriveFolder;
-import jp.liferay.google.drive.sync.api.GoogleDriveSession;
+import jp.liferay.google.drive.sync.background.GoogleDriveCrawler;
 import jp.liferay.google.drive.sync.connection.GoogleDriveConnectionManager;
 import jp.liferay.google.drive.sync.connection.GoogleDriveContext;
+import jp.liferay.google.drive.sync.connection.GoogleDriveSession;
 
 /**
  * Googold Drive Repository
@@ -124,7 +128,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		File file = addFile(
-			extRepositoryParentFolderKey, _FOLDER_MIME_TYPE, name, description,
+			extRepositoryParentFolderKey, GoogleDriveConstants.FOLDER_MIME_TYPE, name, description,
 			null);
 
 		return new GoogleDriveFolder(file, getRootFolderKey());
@@ -489,7 +493,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 				sb.append("!= ");
 			}
 
-			sb.append(_FOLDER_MIME_TYPE);
+			sb.append(GoogleDriveConstants.FOLDER_MIME_TYPE);
 
 			Drive drive = _connectionManager.getDrive();
 
@@ -563,7 +567,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 					sb.append(" = '");
 				}
 
-				sb.append(_FOLDER_MIME_TYPE);
+				sb.append(GoogleDriveConstants.FOLDER_MIME_TYPE);
 				sb.append("' and ");
 			}
 
@@ -580,7 +584,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			GoogleDriveCache googleDriveCache = GoogleDriveCache.getInstance();
 
 			for (File file : files) {
-				if (_FOLDER_MIME_TYPE.equals(file.getMimeType())) {
+				if (GoogleDriveConstants.FOLDER_MIME_TYPE.equals(file.getMimeType())) {
 					extRepositoryObjects.add(
 						(T) new GoogleDriveFolder(file, getRootFolderKey()));
 				}
@@ -652,7 +656,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 	public String getRootFolderKey() {
 
 		try {
-			GoogleDriveSession googleDriveSession = _connectionManager.getGoogleDriveSession();
+			GoogleDriveSession googleDriveSession =
+				_connectionManager.getGoogleDriveSession();
 
 			return googleDriveSession.getRootFolderKey();
 		}
@@ -747,9 +752,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		GoogleDriveContext context = new GoogleDriveContext(
 			googleClientId, googleClientSecret, googleAccessToken,
 			googleRefreshToken);
-		
+
 		_connectionManager = new GoogleDriveConnectionManager(context);
-		
+
 		_connectionManager.getDrive();
 	}
 
@@ -912,6 +917,23 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 	}
 
 	@Override
+	public Hits search(SearchContext searchContext, Query query) {
+
+		try {
+			Drive drive = _connectionManager.getDrive();
+			GoogleDriveCrawler.retriveFilesExt(
+				drive,
+				_connectionManager.getGoogleDriveSession().getRootFolderKey());
+		}
+		catch (PortalException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return new HitsImpl();
+	}
+
+	@Override
 	public List<ExtRepositorySearchResult<?>> search(
 		SearchContext searchContext, Query query,
 		ExtRepositoryQueryMapper extRepositoryQueryMapper)
@@ -927,7 +949,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 			for (File file : files) {
 
-				if (_FOLDER_MIME_TYPE.equals(file.getMimeType())) {
+				if (GoogleDriveConstants.FOLDER_MIME_TYPE.equals(file.getMimeType())) {
 					GoogleDriveFolder googleDriveFolder =
 						new GoogleDriveFolder(file, getRootFolderKey());
 
@@ -1251,9 +1273,6 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 		return file;
 	}
-
-	private static final String _FOLDER_MIME_TYPE =
-		"application/vnd.google-apps.folder";
 
 	private static final String _CONFIGURATION_WS = "GOOGLEDRIVE_CONFIG";
 

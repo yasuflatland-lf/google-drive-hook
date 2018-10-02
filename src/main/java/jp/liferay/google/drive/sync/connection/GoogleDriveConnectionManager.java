@@ -21,8 +21,6 @@ import java.io.IOException;
 
 import javax.servlet.http.HttpSession;
 
-import jp.liferay.google.drive.sync.api.GoogleDriveSession;
-
 /**
  * Google Drive Connection Manager
  * 
@@ -37,6 +35,8 @@ public class GoogleDriveConnectionManager {
 
 	/**
 	 * Get Drive object
+	 * 
+	 * Drive is a handler for Google Drive
 	 * 
 	 * @param context
 	 * @return Drive Object

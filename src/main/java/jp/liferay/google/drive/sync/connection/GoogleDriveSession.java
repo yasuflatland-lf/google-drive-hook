@@ -12,7 +12,7 @@
  * details.
  */
 
-package jp.liferay.google.drive.sync.api;
+package jp.liferay.google.drive.sync.connection;
 
 import com.google.api.services.drive.Drive;
 
