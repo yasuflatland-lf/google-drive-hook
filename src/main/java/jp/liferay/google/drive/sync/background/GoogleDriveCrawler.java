@@ -10,24 +10,33 @@ import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.util.StringBundler;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.RecursiveAction;
 
 import jp.liferay.google.drive.repository.constants.GoogleDriveConstants;
 
-public class GoogleDriveCrawler {
+@SuppressWarnings("serial")
+public class GoogleDriveCrawler extends RecursiveAction {
 
-	public static void retriveFilesExt(Drive drive, String folderKey) {
+	public GoogleDriveCrawler(Drive drive, String folderKey) {
+		_drive = drive;
+		_folderKey = folderKey;
+	}
+
+	@Override
+	protected void compute() {
 
 		try {
 
-			Drive.Files driveFiles = drive.files();
+			Drive.Files driveFiles = _drive.files();
 
 			Drive.Files.List driveFilesList = driveFiles.list();
 
 			StringBundler sb = new StringBundler();
 
 			sb.append("'");
-			sb.append(folderKey);
+			sb.append(_folderKey);
 			sb.append("' in parents and ");
 			sb.append("trashed = false");
 
@@ -37,6 +46,8 @@ public class GoogleDriveCrawler {
 
 			List<File> files = fileList.getItems();
 
+			List<GoogleDriveCrawler> tasks = new ArrayList<>();
+			
 			for (File file : files) {
 
 				_log.info("---------------------------------------");
@@ -47,19 +58,26 @@ public class GoogleDriveCrawler {
 
 				if ((GoogleDriveConstants.FOLDER_MIME_TYPE.equals(
 					file.getMimeType()))) {
-					retriveFilesExt(drive, file.getId());
+					GoogleDriveCrawler newTask = new GoogleDriveCrawler(_drive, file.getId());
+					newTask.fork();					
 				}
 			}
-
+			if (tasks.size() > 0) {
+				for (GoogleDriveCrawler task : tasks) {
+					task.join();
+				}
+			}			
 		}
 		catch (IOException ioe) {
 			_log.error(ioe, ioe);
 
 			throw new SystemException(ioe);
 		}
-
 	}
-
+	
+	private Drive _drive;
+	private String _folderKey;	
+	
 	private static final Log _log =
 		LogFactoryUtil.getLog(GoogleDriveCrawler.class);
 

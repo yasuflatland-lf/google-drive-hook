@@ -46,31 +46,41 @@ import com.liferay.document.library.repository.external.model.ExtRepositoryFolde
 import com.liferay.document.library.repository.external.model.ExtRepositoryObjectAdapter;
 import com.liferay.document.library.repository.external.model.ExtRepositoryObjectAdapterType;
 import com.liferay.document.library.repository.external.search.ExtRepositoryQueryMapper;
+import com.liferay.portal.background.task.constants.BackgroundTaskContextMapConstants;
+import com.liferay.portal.kernel.backgroundtask.BackgroundTask;
+import com.liferay.portal.kernel.backgroundtask.BackgroundTaskManagerUtil;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.exception.SystemException;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.RepositoryEntry;
+import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.repository.model.FileEntry;
 import com.liferay.portal.kernel.search.Hits;
 import com.liferay.portal.kernel.search.HitsImpl;
 import com.liferay.portal.kernel.search.Query;
 import com.liferay.portal.kernel.search.SearchContext;
 import com.liferay.portal.kernel.search.SearchException;
+import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
 import com.liferay.portal.kernel.service.ServiceContext;
+import com.liferay.portal.kernel.service.UserLocalServiceUtil;
 import com.liferay.portal.kernel.util.MimeTypesUtil;
 import com.liferay.portal.kernel.util.StringBundler;
 import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.UnicodeProperties;
 import com.liferay.portal.kernel.util.Validator;
+import com.liferay.portal.kernel.uuid.PortalUUIDUtil;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import jp.liferay.google.drive.repository.constants.GoogleDriveConstants;
@@ -78,6 +88,7 @@ import jp.liferay.google.drive.repository.model.GoogleDriveFileEntry;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersion;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersionAlternative;
 import jp.liferay.google.drive.repository.model.GoogleDriveFolder;
+import jp.liferay.google.drive.sync.background.GoogleDriveBaseBackgroundTaskExecutor;
 import jp.liferay.google.drive.sync.background.GoogleDriveCrawler;
 import jp.liferay.google.drive.sync.connection.GoogleDriveConnectionManager;
 import jp.liferay.google.drive.sync.connection.GoogleDriveContext;
@@ -128,8 +139,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		File file = addFile(
-			extRepositoryParentFolderKey, GoogleDriveConstants.FOLDER_MIME_TYPE, name, description,
-			null);
+			extRepositoryParentFolderKey, GoogleDriveConstants.FOLDER_MIME_TYPE,
+			name, description, null);
 
 		return new GoogleDriveFolder(file, getRootFolderKey());
 	}
@@ -584,7 +595,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			GoogleDriveCache googleDriveCache = GoogleDriveCache.getInstance();
 
 			for (File file : files) {
-				if (GoogleDriveConstants.FOLDER_MIME_TYPE.equals(file.getMimeType())) {
+				if (GoogleDriveConstants.FOLDER_MIME_TYPE.equals(
+					file.getMimeType())) {
 					extRepositoryObjects.add(
 						(T) new GoogleDriveFolder(file, getRootFolderKey()));
 				}
@@ -759,6 +771,60 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 	}
 
 	/**
+	 * Retriving Drive Information Background Task
+	 * 
+	 * @throws PortalException
+	 */
+	public void retriveDriveInfoBackgroundTask()
+		throws PortalException {
+
+		Map<String, Serializable> taskContextMap = new HashMap<>();
+
+		taskContextMap.put(
+			BackgroundTaskContextMapConstants.DELETE_ON_SUCCESS, true);
+
+		// TODO : Change this size configurable by a property
+		taskContextMap.put(
+			GoogleDriveConstants.THREAD_POOL_SIZE, _THREAD_POOL_SIZE);
+
+		taskContextMap.put(
+			GoogleDriveConstants.GOOGLE_DRIVE_CONTEXT,
+			_connectionManager.getContext());
+
+		taskContextMap.put(
+			GoogleDriveConstants.ROOT_FOLDER_KEY,
+			_connectionManager.getGoogleDriveSession().getRootFolderKey());
+
+		final String jobName =
+			GoogleDriveBaseBackgroundTaskExecutor.getBackgroundTaskName(
+				PortalUUIDUtil.generate());
+
+		long userId = PrincipalThreadLocal.getUserId();
+		User user = UserLocalServiceUtil.getUser(userId);
+
+		// To delete background task, call DeleteBackgroundTaskMVCActionCommand
+		BackgroundTask backgroundTask = null;
+		try {
+			backgroundTask = BackgroundTaskManagerUtil.addBackgroundTask(
+				user.getUserId(), user.getGroupId(), jobName,
+				GoogleDriveBaseBackgroundTaskExecutor.class.getName(),
+				taskContextMap, new ServiceContext());
+
+			_log.info(
+				"Google Drive Background task ID : " +
+					String.valueOf(backgroundTask.getBackgroundTaskId()));
+			_log.info("Job Name : " + jobName);
+		}
+		catch (Exception e) {
+			if (null != backgroundTask) {
+				_log.info("Task deleted");
+				BackgroundTaskManagerUtil.deleteBackgroundTask(
+					backgroundTask.getBackgroundTaskId());
+			}
+		}
+	}
+
+	/**
 	 * Rename the object
 	 * 
 	 * @param extRepositoryObjectKey
@@ -920,13 +986,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 	public Hits search(SearchContext searchContext, Query query) {
 
 		try {
-			Drive drive = _connectionManager.getDrive();
-			GoogleDriveCrawler.retriveFilesExt(
-				drive,
-				_connectionManager.getGoogleDriveSession().getRootFolderKey());
+			retriveDriveInfoBackgroundTask();
 		}
 		catch (PortalException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
@@ -949,7 +1011,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 			for (File file : files) {
 
-				if (GoogleDriveConstants.FOLDER_MIME_TYPE.equals(file.getMimeType())) {
+				if (GoogleDriveConstants.FOLDER_MIME_TYPE.equals(
+					file.getMimeType())) {
 					GoogleDriveFolder googleDriveFolder =
 						new GoogleDriveFolder(file, getRootFolderKey());
 
@@ -1294,6 +1357,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			_GOOGLE_REFRESH_TOKEN
 		}
 	};
+
+	// TODO: Change this value configuable by a property
+	private int _THREAD_POOL_SIZE = 5;
 
 	private GoogleDriveConnectionManager _connectionManager;
 

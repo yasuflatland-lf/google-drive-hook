@@ -13,6 +13,7 @@ dependencies {
 	compile group: "com.liferay.portal", name: "com.liferay.portal.kernel", version: "2.0.0"
 	compile group: "com.liferay.portal", name: "com.liferay.portal.impl", version: "2.0.0"
 	compile group: 'com.liferay.portal', name: 'com.liferay.util.java', version: '2.0.0'
+	compile group: "com.liferay", name: "com.liferay.portal.background.task.api", version: "2.0.0"
 	compile group: 'com.liferay.portal', name: 'util-bridges', version: '6.2.5'
 	compile group: 'com.liferay.portal', name: 'util-java', version: '6.2.5'
 	compile group: "com.liferay", name: "com.liferay.document.library.repository.external.api", version: "1.0.0"

@@ -1,6 +1,7 @@
 
 package jp.liferay.google.drive.sync.background;
 
+import com.google.api.services.drive.Drive;
 import com.liferay.portal.kernel.backgroundtask.BackgroundTask;
 import com.liferay.portal.kernel.backgroundtask.BackgroundTaskConstants;
 import com.liferay.portal.kernel.backgroundtask.BackgroundTaskExecutor;
@@ -14,17 +15,20 @@ import com.liferay.portal.kernel.util.LoggingTimer;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.concurrent.ForkJoinPool;
 
 import org.osgi.service.component.annotations.Component;
 
 import jp.liferay.google.drive.repository.constants.GoogleDriveConstants;
+import jp.liferay.google.drive.sync.connection.GoogleDriveConnectionManager;
+import jp.liferay.google.drive.sync.connection.GoogleDriveContext;
 
 /**
  * @author Yasuyuki Takeo
  */
 @Component(
 	immediate = true, 
-	property = "background.task.executor.class.name=jp.liferay.google.drive.sync.background.GoogleDriveBaseBackgroundTaskExecutor", 
+	property = "background.task.executor.class.name=jp.liferay.google.drive.sync.background.GoogleDriveBaseBackgroundTaskExecutor",
 	service = BackgroundTaskExecutor.class
 )
 public class GoogleDriveBaseBackgroundTaskExecutor
@@ -45,18 +49,32 @@ public class GoogleDriveBaseBackgroundTaskExecutor
 	public BackgroundTaskResult execute(BackgroundTask backgroundTask)
 		throws Exception {
 
-		Map<String, Serializable> taskContextMap = backgroundTask.getTaskContextMap();
-		int parallelism = (int)taskContextMap.get(GoogleDriveConstants.THREAD_POOL_SIZE);
-		
+		Map<String, Serializable> taskContextMap =
+			backgroundTask.getTaskContextMap();
+
+		int parallelism =
+			(int) taskContextMap.get(GoogleDriveConstants.THREAD_POOL_SIZE);
+
+		GoogleDriveContext context = (GoogleDriveContext) taskContextMap.get(
+			GoogleDriveConstants.GOOGLE_DRIVE_CONTEXT);
+
+		String rootFolderKey =
+			(String) taskContextMap.get(GoogleDriveConstants.ROOT_FOLDER_KEY);
+
 		_log.info("parallelism : " + String.valueOf(parallelism));
-		
+
+		GoogleDriveConnectionManager connectionManager =
+			new GoogleDriveConnectionManager(context);
+
+		Drive drive = connectionManager.getDrive();
+
 		try (LoggingTimer loggingTimer = new LoggingTimer(
 			String.valueOf(backgroundTask.getBackgroundTaskId()))) {
 
-//			String path = "/Users/yasuflatland/project/";
-//			FileSearchTask fileSearchTask = new FileSearchTask(new File(path));
-//			ForkJoinPool pool = new ForkJoinPool(parallelism);
-//			pool.invoke(fileSearchTask);
+			GoogleDriveCrawler googleDriveCrawler =
+				new GoogleDriveCrawler(drive, rootFolderKey);
+			ForkJoinPool pool = new ForkJoinPool(parallelism);
+			pool.invoke(googleDriveCrawler);
 		}
 
 		return BackgroundTaskResult.SUCCESS;

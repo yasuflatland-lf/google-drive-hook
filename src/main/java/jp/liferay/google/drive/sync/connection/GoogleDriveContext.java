@@ -1,13 +1,15 @@
 
 package jp.liferay.google.drive.sync.connection;
 
+import java.io.Serializable;
+
 /**
  * Google Drive Context
  * 
  * @author Yasuyuki Takeo
  *
  */
-public class GoogleDriveContext {
+public class GoogleDriveContext implements Serializable{
 
 	public GoogleDriveContext(
 		String googleClientId, String googleClientSecret,
@@ -66,4 +68,6 @@ public class GoogleDriveContext {
 	private String _googleAccessToken;
 
 	private String _googleRefreshToken;
+	
+	private static final long serialVersionUID = 5405672106153268841L;
 }
