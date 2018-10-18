@@ -9,6 +9,8 @@ import com.liferay.portal.kernel.backgroundtask.BackgroundTaskResult;
 import com.liferay.portal.kernel.backgroundtask.BackgroundTaskStatusMessageTranslator;
 import com.liferay.portal.kernel.backgroundtask.BaseBackgroundTaskExecutor;
 import com.liferay.portal.kernel.backgroundtask.display.BackgroundTaskDisplay;
+import com.liferay.portal.kernel.json.JSONDeserializer;
+import com.liferay.portal.kernel.json.JSONFactoryUtil;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.util.LoggingTimer;
@@ -55,8 +57,11 @@ public class GoogleDriveBaseBackgroundTaskExecutor
 		int parallelism =
 			(int) taskContextMap.get(GoogleDriveConstants.THREAD_POOL_SIZE);
 
-		GoogleDriveContext context = (GoogleDriveContext) taskContextMap.get(
+		String contextJson = (String) taskContextMap.get(
 			GoogleDriveConstants.GOOGLE_DRIVE_CONTEXT);
+
+_log.error(contextJson);
+		GoogleDriveContext context = (GoogleDriveContext)JSONFactoryUtil.deserialize(contextJson);
 
 		String rootFolderKey =
 			(String) taskContextMap.get(GoogleDriveConstants.ROOT_FOLDER_KEY);
@@ -68,13 +73,18 @@ public class GoogleDriveBaseBackgroundTaskExecutor
 
 		Drive drive = connectionManager.getDrive();
 
+		ForkJoinPool pool = new ForkJoinPool(parallelism);
+
 		try (LoggingTimer loggingTimer = new LoggingTimer(
 			String.valueOf(backgroundTask.getBackgroundTaskId()))) {
 
 			GoogleDriveCrawler googleDriveCrawler =
-				new GoogleDriveCrawler(drive, rootFolderKey);
-			ForkJoinPool pool = new ForkJoinPool(parallelism);
+				new GoogleDriveCrawler(drive, rootFolderKey, false);
 			pool.invoke(googleDriveCrawler);
+
+		}
+		finally {
+			pool.shutdown();
 		}
 
 		return BackgroundTaskResult.SUCCESS;
@@ -106,7 +116,7 @@ public class GoogleDriveBaseBackgroundTaskExecutor
 	}
 
 	private static final String _BACKGROUND_TASK_NAME_PREFIX =
-		"GoogleDriveBaseBackgroundTaskExecutor-";
+		GoogleDriveBaseBackgroundTaskExecutor.class.getName() + "-";
 
 	private static final Log _log =
 		LogFactoryUtil.getLog(GoogleDriveBaseBackgroundTaskExecutor.class);

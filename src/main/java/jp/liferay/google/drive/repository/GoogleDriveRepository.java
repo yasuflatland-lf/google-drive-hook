@@ -51,6 +51,8 @@ import com.liferay.portal.kernel.backgroundtask.BackgroundTask;
 import com.liferay.portal.kernel.backgroundtask.BackgroundTaskManagerUtil;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.exception.SystemException;
+import com.liferay.portal.kernel.json.JSONFactoryUtil;
+import com.liferay.portal.kernel.json.JSONSerializer;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.RepositoryEntry;
@@ -89,7 +91,6 @@ import jp.liferay.google.drive.repository.model.GoogleDriveFileVersion;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersionAlternative;
 import jp.liferay.google.drive.repository.model.GoogleDriveFolder;
 import jp.liferay.google.drive.sync.background.GoogleDriveBaseBackgroundTaskExecutor;
-import jp.liferay.google.drive.sync.background.GoogleDriveCrawler;
 import jp.liferay.google.drive.sync.connection.GoogleDriveConnectionManager;
 import jp.liferay.google.drive.sync.connection.GoogleDriveContext;
 import jp.liferay.google.drive.sync.connection.GoogleDriveSession;
@@ -787,9 +788,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		taskContextMap.put(
 			GoogleDriveConstants.THREAD_POOL_SIZE, _THREAD_POOL_SIZE);
 
+		String serizlizedContext = JSONFactoryUtil.serialize(_connectionManager.getContext());
 		taskContextMap.put(
 			GoogleDriveConstants.GOOGLE_DRIVE_CONTEXT,
-			_connectionManager.getContext());
+			serizlizedContext);
 
 		taskContextMap.put(
 			GoogleDriveConstants.ROOT_FOLDER_KEY,
@@ -809,7 +811,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 				user.getUserId(), user.getGroupId(), jobName,
 				GoogleDriveBaseBackgroundTaskExecutor.class.getName(),
 				taskContextMap, new ServiceContext());
-
+			
 			_log.info(
 				"Google Drive Background task ID : " +
 					String.valueOf(backgroundTask.getBackgroundTaskId()));
@@ -1155,10 +1157,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 				extRepositoryAdapterCache.get(
 					extRepositoryFileEntry.getExtRepositoryModelKey());
 				extRepositoryAdapterCache.clear();
-
-				repositoryEntryLocalService.updateRepositoryEntry(
-					fileEntryId,
-					extRepositoryFileEntry.getExtRepositoryModelKey());
+_log.error("saved title : " + extRepositoryFileEntry.getTitle());
+//				repositoryEntryLocalService.updateRepositoryEntry(
+//					fileEntryId,
+//					extRepositoryFileEntry.getExtRepositoryModelKey());
 			}
 
 			if (needsCheckIn) {

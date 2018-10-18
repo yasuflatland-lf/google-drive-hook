@@ -1,6 +1,7 @@
 
 package jp.liferay.google.drive.sync.background;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
@@ -8,6 +9,7 @@ import com.liferay.portal.kernel.exception.SystemException;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.util.StringBundler;
+import com.liferay.portal.kernel.util.Time;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -19,15 +21,26 @@ import jp.liferay.google.drive.repository.constants.GoogleDriveConstants;
 @SuppressWarnings("serial")
 public class GoogleDriveCrawler extends RecursiveAction {
 
-	public GoogleDriveCrawler(Drive drive, String folderKey) {
+	public GoogleDriveCrawler(
+		Drive drive, String folderKey, boolean sleepFlag) {
+
 		_drive = drive;
 		_folderKey = folderKey;
+		_sleepFlag = sleepFlag;
 	}
 
 	@Override
 	protected void compute() {
 
 		try {
+
+			// If this background task hits the Google API's quota, wait until
+			// the quota is released.
+			if (_sleepFlag) {
+				_log.info("Sleep for " + String.valueOf(getDelay()));
+				_sleepFlag = false;
+				Thread.sleep(getDelay());
+			}
 
 			Drive.Files driveFiles = _drive.files();
 
@@ -47,37 +60,59 @@ public class GoogleDriveCrawler extends RecursiveAction {
 			List<File> files = fileList.getItems();
 
 			List<GoogleDriveCrawler> tasks = new ArrayList<>();
-			
+
 			for (File file : files) {
 
-				_log.info("---------------------------------------");
-				_log.info("name : " + file.getTitle());
-				_log.info(
-					"type : " + (GoogleDriveConstants.FOLDER_MIME_TYPE.equals(
-						file.getMimeType()) ? "Folder" : "File"));
+				if (_log.isDebugEnabled()) {
+					_log.debug("---------------------------------------");
+					_log.debug("name : " + file.getTitle());
+					_log.debug(
+						"type : " +
+							(GoogleDriveConstants.FOLDER_MIME_TYPE.equals(
+								file.getMimeType()) ? "Folder" : "File"));
+				}
 
 				if ((GoogleDriveConstants.FOLDER_MIME_TYPE.equals(
 					file.getMimeType()))) {
-					GoogleDriveCrawler newTask = new GoogleDriveCrawler(_drive, file.getId());
-					newTask.fork();					
+					GoogleDriveCrawler newTask =
+						new GoogleDriveCrawler(_drive, file.getId(), false);
+					newTask.fork();
 				}
 			}
 			if (tasks.size() > 0) {
 				for (GoogleDriveCrawler task : tasks) {
 					task.join();
 				}
-			}			
+			}
 		}
-		catch (IOException ioe) {
-			_log.error(ioe, ioe);
+		catch (GoogleJsonResponseException e) {
+			// In the case where parallel processing hits the Google API quota,
+			// put some sleep and retry to process the same folder.
+			_log.info("may hit the quota of Google API. Restart crawling");
 
-			throw new SystemException(ioe);
+			GoogleDriveCrawler newTask =
+				new GoogleDriveCrawler(_drive, _folderKey, true);
+			newTask.fork();
+
 		}
+		catch (IOException | InterruptedException e) {
+			_log.error(e, e);
+
+			throw new SystemException(e);
+		}
+	}
+
+	protected long getDelay() {
+		return _DELAY * Time.SECOND;
 	}
 	
 	private Drive _drive;
-	private String _folderKey;	
-	
+	private String _folderKey;
+	private boolean _sleepFlag;
+
+	// TODO : This need to be configurable.
+	private static int _DELAY = 100;
+
 	private static final Log _log =
 		LogFactoryUtil.getLog(GoogleDriveCrawler.class);
 

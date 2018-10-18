@@ -72,7 +72,7 @@ public class GoogleDriveCache implements Cloneable {
 		String googleDriveFileId = googleDriveFile.getId();
 
 		if (_log.isInfoEnabled()) {
-			_log.info("Put " + googleDriveFileId);
+			_log.info("Put " + googleDriveFileId + " Title <" + googleDriveFile.getTitle() + ">");
 		}
 
 		googleDriveFiles.put(googleDriveFileId, googleDriveFile);
