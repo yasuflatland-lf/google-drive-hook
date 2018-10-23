@@ -59,7 +59,6 @@ public class GoogleDriveBaseBackgroundTaskExecutor
 		String contextJson = (String) taskContextMap.get(
 			GoogleDriveConstants.GOOGLE_DRIVE_CONTEXT);
 
-_log.error(contextJson);
 		GoogleDriveContext context = (GoogleDriveContext)JSONFactoryUtil.deserialize(contextJson);
 
 		String rootFolderKey =

@@ -3,7 +3,9 @@ package jp.liferay.google.drive.sync.cache;
 
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.Revision;
+import com.liferay.document.library.repository.external.ExtRepositoryObject;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import jp.liferay.google.drive.sync.api.GoogleDriveCachedObject;
@@ -13,7 +15,9 @@ import jp.liferay.google.drive.sync.api.GoogleDriveCachedObject;
  * 
  * @author Yasuyuki Takeo
  */
-public class GoogleDriveCachedObjectImpl implements GoogleDriveCachedObject {
+@SuppressWarnings("rawtypes")
+public class GoogleDriveCachedObjectImpl<T extends ExtRepositoryObject>
+	implements GoogleDriveCachedObject {
 
 	public GoogleDriveCachedObjectImpl(File file, Revision revision) {
 
@@ -21,13 +25,16 @@ public class GoogleDriveCachedObjectImpl implements GoogleDriveCachedObject {
 		_revision = revision;
 	}
 
-	public GoogleDriveCachedObjectImpl(List<File> files, Revision revision) {
+	@SuppressWarnings("unchecked")
+	public GoogleDriveCachedObjectImpl(
+		List<File> files, List extRepositoryObjects) {
 
 		_files = files;
-		_revision = revision;
+		_extRepositoryObjects = extRepositoryObjects;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
 	 * @see jp.liferay.google.drive.sync.cache.GoogleDriveCachedObject#getFile()
 	 */
 	@Override
@@ -36,8 +43,11 @@ public class GoogleDriveCachedObjectImpl implements GoogleDriveCachedObject {
 		return _file;
 	}
 
-	/* (non-Javadoc)
-	 * @see jp.liferay.google.drive.sync.cache.GoogleDriveCachedObject#setFile(com.google.api.services.drive.model.File)
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * jp.liferay.google.drive.sync.cache.GoogleDriveCachedObject#setFile(com.
+	 * google.api.services.drive.model.File)
 	 */
 	@Override
 	public void setFile(File file) {
@@ -45,8 +55,10 @@ public class GoogleDriveCachedObjectImpl implements GoogleDriveCachedObject {
 		_file = file;
 	}
 
-	/* (non-Javadoc)
-	 * @see jp.liferay.google.drive.sync.cache.GoogleDriveCachedObject#getRevision()
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * jp.liferay.google.drive.sync.cache.GoogleDriveCachedObject#getRevision()
 	 */
 	@Override
 	public Revision getRevision() {
@@ -54,8 +66,11 @@ public class GoogleDriveCachedObjectImpl implements GoogleDriveCachedObject {
 		return _revision;
 	}
 
-	/* (non-Javadoc)
-	 * @see jp.liferay.google.drive.sync.cache.GoogleDriveCachedObject#setRevision(com.google.api.services.drive.model.Revision)
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * jp.liferay.google.drive.sync.cache.GoogleDriveCachedObject#setRevision(
+	 * com.google.api.services.drive.model.Revision)
 	 */
 	@Override
 	public void setRevision(Revision revision) {
@@ -63,18 +78,45 @@ public class GoogleDriveCachedObjectImpl implements GoogleDriveCachedObject {
 		_revision = revision;
 	}
 
-	/* (non-Javadoc)
-	 * @see jp.liferay.google.drive.sync.cache.GoogleDriveCachedObject#toString()
+	/*
+	 * (non-Javadoc)
+	 * @see
+	 * jp.liferay.google.drive.sync.cache.GoogleDriveCachedObject#toString()
 	 */
 	@Override
 	public String toString() {
 
-		return "GoogleDriveCachedObjectImpl [_file=" + _file + ", _files=" +
-			_files + ", _revision=" + _revision + "]";
+		return "GoogleDriveCachedObjectImpl [_file=" + _file + ", _revision=" +
+			_revision + "]";
 	}
 
-	private File _file;
+	public List<T> getExtRepositoryObjects() {
+
+		return _extRepositoryObjects;
+	}
+
+	public List<File> getFiles() {
+
+		return _files;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public void setExtRepositoryObjects(List extRepositoryObjects) {
+
+		_extRepositoryObjects.addAll(extRepositoryObjects);
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public void setFiles(List files) {
+
+		_files.addAll(files);
+	}
+
+	private List<T> _extRepositoryObjects = new ArrayList<>();
 	private List<File> _files;
+	private File _file;
 	private Revision _revision;
 
 }

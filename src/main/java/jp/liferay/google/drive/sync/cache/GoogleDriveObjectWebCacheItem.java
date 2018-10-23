@@ -11,7 +11,6 @@ import com.liferay.portal.kernel.webcache.WebCacheException;
 import com.liferay.portal.kernel.webcache.WebCacheItem;
 
 import java.io.IOException;
-import java.util.List;
 
 import jp.liferay.google.drive.sync.api.GoogleDriveCachedObject;
 
@@ -20,8 +19,9 @@ import jp.liferay.google.drive.sync.api.GoogleDriveCachedObject;
  * 
  * @author Yasuyuki Takeo
  */
-@SuppressWarnings("serial")
 public class GoogleDriveObjectWebCacheItem implements WebCacheItem {
+
+	private static final long serialVersionUID = 5711880074097818978L;
 
 	public GoogleDriveObjectWebCacheItem(Drive drive, long refreshTime) {
 
@@ -39,7 +39,7 @@ public class GoogleDriveObjectWebCacheItem implements WebCacheItem {
 		File file, Drive drive, long refreshTime) {
 
 		_file = file;
-		
+
 		_refreshTime = GoogleDriveCacheConstants._REFRESH_TIME;
 
 		if (refreshTime < 0) {
@@ -50,20 +50,12 @@ public class GoogleDriveObjectWebCacheItem implements WebCacheItem {
 
 	}
 
-	public GoogleDriveCachedObject getGoogleDriveCachedObject(
-		List<File> files, Revision revision) {
-
-		GoogleDriveCachedObject googleDriveCachedObject =
-			new GoogleDriveCachedObjectImpl(files, null);
-		return googleDriveCachedObject;
-
-	}
-
+	@SuppressWarnings("rawtypes")
 	public GoogleDriveCachedObject getGoogleDriveCachedObject(
 		File file, Revision revision) {
 
 		GoogleDriveCachedObject googleDriveCachedObject =
-			new GoogleDriveCachedObjectImpl(file, null);
+			new GoogleDriveCachedObjectImpl(file, revision);
 		return googleDriveCachedObject;
 
 	}
@@ -79,33 +71,45 @@ public class GoogleDriveObjectWebCacheItem implements WebCacheItem {
 
 		// File
 		if (null != _file) {
-			_log.info(
-				"Store cache : _file : Key <" + extRepositoryObjectKey + "> :" +
-					_file.toString());
+			if (_log.isDebugEnabled()) {
+				_log.debug(
+					"Store cache : _file : Key <" + extRepositoryObjectKey +
+						"> :" + _file.toString());
+			}
+			else {
+				_log.info(
+					"Store cache : fetch and store : Key <" + _file.getTitle() +
+						">");
+			}
 
 			return getGoogleDriveCachedObject(_file, null);
 		}
 
 		try {
 
-			file = getFile(extRepositoryObjectKey);
+			_file = getFile(extRepositoryObjectKey);
 
-			if (Validator.isNotNull(file.getCanReadRevisions())) {
+			if (Validator.isNotNull(_file.getCanReadRevisions())) {
 				revision = getLatestRevision(file);
 			}
 
-			_log.info(
-				"Store cache : fetch and store : Key <" +
-					extRepositoryObjectKey + "> :" + file.toString());
-
-			return getGoogleDriveCachedObject(_file, revision);
+			if (_log.isDebugEnabled()) {
+				_log.debug(
+					"Store cache : fetch and store : Key <" +
+						extRepositoryObjectKey + "> :" + _file.toString());
+			}
+			else {
+				_log.info(
+					"Store cache : fetch and store : Key <" + _file.getTitle() +
+						">");
+			}
 
 		}
 		catch (IOException e) {
 			_log.error(e, e);
-
-			return getGoogleDriveCachedObject(_file, revision);
 		}
+
+		return getGoogleDriveCachedObject(file, revision);
 	}
 
 	/**

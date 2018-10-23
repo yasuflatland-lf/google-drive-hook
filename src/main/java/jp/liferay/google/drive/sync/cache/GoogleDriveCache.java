@@ -3,10 +3,13 @@ package jp.liferay.google.drive.sync.cache;
 
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
+import com.liferay.document.library.repository.external.ExtRepositoryObject;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.webcache.WebCacheItem;
 import com.liferay.portal.kernel.webcache.WebCachePoolUtil;
+
+import java.util.List;
 
 import jp.liferay.google.drive.sync.api.GoogleDriveCachedObject;
 
@@ -34,6 +37,15 @@ public class GoogleDriveCache implements Cloneable {
 		}
 	}
 
+	/**
+	 * Google Drive Cache
+	 * 
+	 * @param extRepositoryObjectKey
+	 * @param drive
+	 * @param refreshTime
+	 * @return
+	 */
+	@SuppressWarnings("rawtypes")
 	public GoogleDriveCachedObject getGoogleDriveCachedObject(
 		String extRepositoryObjectKey, Drive drive, long refreshTime) {
 
@@ -47,19 +59,10 @@ public class GoogleDriveCache implements Cloneable {
 				(GoogleDriveCachedObject) WebCachePoolUtil.get(
 					extRepositoryObjectKey, wci);
 
-			// In case where the Root folder fails to fetch file object
-			if (null == googleDriveCachedObject.getFile()) {
-				WebCachePoolUtil.remove(extRepositoryObjectKey);
-
-				googleDriveCachedObject =
-					(GoogleDriveCachedObject) WebCachePoolUtil.get(
-						extRepositoryObjectKey, wci);
-			}
-
 			return googleDriveCachedObject;
 		}
 		catch (ClassCastException cce) {
-			_log.error(cce, cce);
+			_log.info("Retrive object. Key <" + extRepositoryObjectKey + ">");
 
 			WebCachePoolUtil.remove(extRepositoryObjectKey);
 
@@ -72,6 +75,16 @@ public class GoogleDriveCache implements Cloneable {
 
 	}
 
+	/**
+	 * Google Drive Cache
+	 * 
+	 * @param extRepositoryObjectKey
+	 * @param file
+	 * @param drive
+	 * @param refreshTime
+	 * @return
+	 */
+	@SuppressWarnings("rawtypes")
 	public GoogleDriveCachedObject getGoogleDriveCachedObject(
 		String extRepositoryObjectKey, File file, Drive drive,
 		long refreshTime) {
@@ -86,20 +99,10 @@ public class GoogleDriveCache implements Cloneable {
 				(GoogleDriveCachedObject) WebCachePoolUtil.get(
 					extRepositoryObjectKey, wci);
 
-			// In case where the Root folder fails to fetch file object
-			if (null == googleDriveCachedObject.getFile()) {
-				// Reset cache and force to retrive a File
-				WebCachePoolUtil.remove(extRepositoryObjectKey);
-
-				googleDriveCachedObject =
-					(GoogleDriveCachedObject) WebCachePoolUtil.get(
-						extRepositoryObjectKey, wci);
-			}
-
 			return googleDriveCachedObject;
 		}
 		catch (ClassCastException cce) {
-			_log.error(cce, cce);
+			_log.info("Retrive object. Key <" + extRepositoryObjectKey + ">");
 
 			WebCachePoolUtil.remove(extRepositoryObjectKey);
 
@@ -111,6 +114,54 @@ public class GoogleDriveCache implements Cloneable {
 		}
 	}
 
+	/**
+	 * Google Drive Cache
+	 * 
+	 * @param extRepositoryObjectKey
+	 * @param files
+	 * @param extRepositoryObjects
+	 * @param refreshTime
+	 * @return
+	 */
+	@SuppressWarnings("rawtypes")
+	public <T extends ExtRepositoryObject> GoogleDriveCachedObject getGoogleDriveCachedDirectory(
+		String extRepositoryObjectKey, List<File> files,
+		List<T> extRepositoryObjects, long refreshTime, boolean initialize) {
+
+		@SuppressWarnings("unchecked")
+		WebCacheItem wci = new GoogleDriveDirWebCacheItem(
+			files, extRepositoryObjects, refreshTime, initialize);
+
+		GoogleDriveCachedObject googleDriveCachedObject = null;
+
+		try {
+			googleDriveCachedObject =
+				(GoogleDriveCachedObject) WebCachePoolUtil.get(
+					extRepositoryObjectKey, wci);
+
+			return googleDriveCachedObject;
+		}
+		catch (ClassCastException cce) {
+			_log.info("Retrive object. Key <" + extRepositoryObjectKey + ">");
+
+			WebCachePoolUtil.remove(extRepositoryObjectKey);
+
+			googleDriveCachedObject =
+				(GoogleDriveCachedObject) WebCachePoolUtil.get(
+					extRepositoryObjectKey, wci);
+
+			return googleDriveCachedObject;
+		}
+	}
+
+	/**
+	 * Google Drive Cache
+	 * 
+	 * @param extRepositoryObjectKey
+	 * @param drive
+	 * @return
+	 */
+	@SuppressWarnings("rawtypes")
 	public GoogleDriveCachedObject getGoogleDriveCachedObject(
 		String extRepositoryObjectKey, Drive drive) {
 
@@ -118,12 +169,38 @@ public class GoogleDriveCache implements Cloneable {
 
 	}
 
+	/**
+	 * Google Drive Cache
+	 * 
+	 * @param extRepositoryObjectKey
+	 * @param file
+	 * @param drive
+	 * @return
+	 */
+	@SuppressWarnings("rawtypes")
 	public GoogleDriveCachedObject getGoogleDriveCachedObject(
 		String extRepositoryObjectKey, File file, Drive drive) {
 
 		return getGoogleDriveCachedObject(
 			extRepositoryObjectKey, file, drive, -1);
 
+	}
+
+	/**
+	 * Google Drive Cache
+	 * 
+	 * @param extRepositoryObjectKey
+	 * @param files
+	 * @param extRepositoryObjects
+	 * @return
+	 */
+	@SuppressWarnings("rawtypes")
+	public <T extends ExtRepositoryObject> GoogleDriveCachedObject getGoogleDriveCachedDirectory(
+		String extRepositoryObjectKey, List<File> files,
+		List<T> extRepositoryObjects, boolean initialize) {
+
+		return getGoogleDriveCachedDirectory(
+			extRepositoryObjectKey, files, extRepositoryObjects, -1, initialize);
 	}
 
 	public void remove(String extRepositoryObjectKey) {

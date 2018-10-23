@@ -40,6 +40,7 @@ import com.liferay.document.library.repository.external.ExtRepositoryFileVersion
 import com.liferay.document.library.repository.external.ExtRepositoryFolder;
 import com.liferay.document.library.repository.external.ExtRepositoryObject;
 import com.liferay.document.library.repository.external.ExtRepositoryObjectType;
+import com.liferay.document.library.repository.external.ExtRepositoryQueryMapperImpl;
 import com.liferay.document.library.repository.external.ExtRepositorySearchResult;
 import com.liferay.document.library.repository.external.model.ExtRepositoryFileEntryAdapter;
 import com.liferay.document.library.repository.external.model.ExtRepositoryFolderAdapter;
@@ -57,18 +58,24 @@ import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.RepositoryEntry;
 import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.repository.model.FileEntry;
+import com.liferay.portal.kernel.search.Document;
+import com.liferay.portal.kernel.search.DocumentImpl;
+import com.liferay.portal.kernel.search.Field;
 import com.liferay.portal.kernel.search.Hits;
 import com.liferay.portal.kernel.search.HitsImpl;
 import com.liferay.portal.kernel.search.Query;
+import com.liferay.portal.kernel.search.QueryConfig;
 import com.liferay.portal.kernel.search.SearchContext;
 import com.liferay.portal.kernel.search.SearchException;
 import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
 import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.service.UserLocalServiceUtil;
+import com.liferay.portal.kernel.util.ArrayUtil;
 import com.liferay.portal.kernel.util.MimeTypesUtil;
 import com.liferay.portal.kernel.util.StringBundler;
 import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.kernel.util.StringUtil;
+import com.liferay.portal.kernel.util.Time;
 import com.liferay.portal.kernel.util.UnicodeProperties;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.uuid.PortalUUIDUtil;
@@ -83,6 +90,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import jp.liferay.google.drive.repository.constants.GoogleDriveConstants;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileEntry;
@@ -279,10 +287,20 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		ExtRepositoryFileVersion extRepositoryFileVersion)
 		throws PortalException {
 
-		GoogleDriveFileVersion googleDriveFileVersion =
-			(GoogleDriveFileVersion) extRepositoryFileVersion;
+		if (extRepositoryFileVersion instanceof GoogleDriveFileVersion) {
+			GoogleDriveFileVersion googleDriveFileVersion =
+				(GoogleDriveFileVersion) extRepositoryFileVersion;
 
-		return getContentStream(googleDriveFileVersion.getDownloadURL());
+			return getContentStream(googleDriveFileVersion.getDownloadURL());
+
+		}
+		else {
+			GoogleDriveFileVersionAlternative googleDriveFileVersionAlternative =
+				(GoogleDriveFileVersionAlternative) extRepositoryFileVersion;
+
+			return getContentStream(
+				googleDriveFileVersionAlternative.getDownloadURL());
+		}
 	}
 
 	protected InputStream getContentStream(String downloadURL)
@@ -366,6 +384,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		Drive drive = null;
+		List<ExtRepositoryFileVersion> extRepositoryFileVersions =
+			new ArrayList<>();
 
 		try {
 			drive = _connectionManager.getDrive();
@@ -380,9 +400,6 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			List<Revision> revisions = revisionList.getItems();
 			Collections.reverse(revisions);
 			Revision latest = revisions.stream().findFirst().get();
-
-			List<ExtRepositoryFileVersion> extRepositoryFileVersions =
-				new ArrayList<>();
 
 			extRepositoryFileVersions.add(
 				new GoogleDriveFileVersion(
@@ -423,14 +440,14 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 				throw new SystemException(e1);
 			}
 
-			GoogleJsonError ge = e.getDetails();
-			_log.info(
-				"file name : " + file.getTitle() + " path : <" +
-					file.getDefaultOpenWithLink() + "> code : " + ge.getCode() +
-					" Message : " + ge.getMessage());
+			if (_log.isDebugEnabled()) {
+				GoogleJsonError ge = e.getDetails();
+				_log.debug(
+					"file name : " + file.getTitle() + " path : <" +
+						file.getDefaultOpenWithLink() + "> code : " +
+						ge.getCode() + " Message : " + ge.getMessage());
 
-			List<ExtRepositoryFileVersion> extRepositoryFileVersions =
-				new ArrayList<>();
+			}
 
 			extRepositoryFileVersions.add(
 				new GoogleDriveFileVersionAlternative(
@@ -552,6 +569,24 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
+			List<File> files = new ArrayList<>();
+
+			List<T> extRepositoryObjects = new ArrayList<>();
+
+			GoogleDriveCache googleDriveCache =
+				GoogleDriveCacheFactory.create();
+
+			String key = extRepositoryObjectType.toString() +
+				StringPool.UNDERLINE + extRepositoryFolderKey;
+			GoogleDriveCachedObject googleDriveCachedObject =
+				googleDriveCache.getGoogleDriveCachedDirectory(
+					key, files, extRepositoryObjects, false);
+
+			if (null != googleDriveCachedObject &&
+				null != googleDriveCachedObject.getFiles()) {
+				return googleDriveCachedObject.getExtRepositoryObjects();
+			}
+
 			Drive drive = _connectionManager.getDrive();
 
 			Drive.Files driveFiles = drive.files();
@@ -590,11 +625,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 			FileList fileList = driveFilesList.execute();
 
-			List<File> files = fileList.getItems();
-
-			List<T> extRepositoryObjects = new ArrayList<>();
-
-			GoogleDriveCache gdc = GoogleDriveCacheFactory.create();
+			files = fileList.getItems();
 
 			for (File file : files) {
 
@@ -608,8 +639,13 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 						(T) new GoogleDriveFileEntry(file));
 				}
 
-				gdc.getGoogleDriveCachedObject(file.getId(), file, drive);
+				googleDriveCache.getGoogleDriveCachedObject(
+					file.getId(), file, drive);
 			}
+
+			googleDriveCachedObject =
+				googleDriveCache.getGoogleDriveCachedDirectory(
+					key, files, extRepositoryObjects, true);
 
 			return extRepositoryObjects;
 		}
@@ -986,17 +1022,130 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		return googleDriveFolderList;
 	}
 
-	@Override
-	public Hits search(SearchContext searchContext, Query query) {
+	protected List<File> filterList(
+		List<File> fileList, int delta, int maxSize) {
+
+		return fileList.stream().skip(delta).limit(maxSize).collect(
+			Collectors.toList());
+	}
+
+	protected SearchResult searchDriveEx(
+		Drive drive, SearchContext searchContext)
+		throws PortalException {
+
+		List<File> googleDriveFolderList = new ArrayList<>();
+
+		String pageToken = null;
+
+		String searchQuery =
+			"fullText contains " + "'" + searchContext.getKeywords() + "'";
 
 		try {
-			retriveDriveInfoBackgroundTask();
+			do {
+				FileList result;
+
+				result = drive.files().list().setQ(searchQuery).setPageToken(
+					pageToken).execute();
+
+				googleDriveFolderList.addAll(result.getItems());
+
+				pageToken = result.getNextPageToken();
+			}
+			while (pageToken != null);
 		}
-		catch (PortalException e) {
-			e.printStackTrace();
+		catch (IOException e) {
+			throw new PortalException("Search query error.", e);
 		}
 
-		return new HitsImpl();
+		if (_log.isDebugEnabled()) {
+			for (File file : googleDriveFolderList) {
+				_log.debug("Found file -> " + file.getTitle());
+			}
+		}
+
+		List<File> filteredList = filterList(
+			googleDriveFolderList, searchContext.getStart(),
+			searchContext.getEnd());
+
+		return new SearchResult(filteredList, googleDriveFolderList.size());
+	}
+
+	@Override
+	public Hits search(SearchContext searchContext, Query query)
+		throws SearchException {
+
+		long startTime = System.currentTimeMillis();
+
+		List<ExtRepositorySearchResult<?>> extRepositorySearchResults = null;
+
+		try {
+			extRepositorySearchResults = search(
+				searchContext, query, new ExtRepositoryQueryMapperImpl(this));
+		}
+		catch (PortalException | SystemException e) {
+			throw new SearchException("Unable to perform search", e);
+		}
+
+		QueryConfig queryConfig = searchContext.getQueryConfig();
+
+		List<Document> documents = new ArrayList<>();
+		List<String> snippets = new ArrayList<>();
+		List<Float> scores = new ArrayList<>();
+
+		int total = 0;
+
+		for (ExtRepositorySearchResult<?> extRepositorySearchResult : extRepositorySearchResults) {
+
+			try {
+				ExtRepositoryObjectAdapter<?> extRepositoryEntryAdapter =
+					_toExtRepositoryObjectAdapter(
+						ExtRepositoryObjectAdapterType.OBJECT,
+						extRepositorySearchResult.getObject());
+
+				Document document = new DocumentImpl();
+
+				document.addKeyword(
+					Field.ENTRY_CLASS_NAME,
+					extRepositoryEntryAdapter.getModelClassName());
+				document.addKeyword(
+					Field.ENTRY_CLASS_PK,
+					extRepositoryEntryAdapter.getPrimaryKey());
+				document.addKeyword(
+					Field.TITLE, extRepositoryEntryAdapter.getName());
+
+				documents.add(document);
+
+				if (queryConfig.isScoreEnabled()) {
+					scores.add(extRepositorySearchResult.getScore());
+				}
+				else {
+					scores.add(1.0F);
+				}
+
+				snippets.add(extRepositorySearchResult.getSnippet());
+
+				total++;
+			}
+			catch (PortalException | SystemException e) {
+				if (_log.isWarnEnabled()) {
+					_log.warn("Invalid entry returned from search", e);
+				}
+			}
+		}
+
+		float searchTime =
+			(float) (System.currentTimeMillis() - startTime) / Time.SECOND;
+
+		Hits hits = new HitsImpl();
+
+		hits.setDocs(documents.toArray(new Document[documents.size()]));
+		hits.setLength(total);
+		hits.setQueryTerms(new String[0]);
+		hits.setScores(ArrayUtil.toFloatArray(scores));
+		hits.setSearchTime(searchTime);
+		hits.setSnippets(snippets.toArray(new String[snippets.size()]));
+		hits.setStart(startTime);
+		return hits;
 	}
 
 	@Override
@@ -1159,8 +1308,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 				extRepositoryAdapterCache.get(
 					extRepositoryFileEntry.getExtRepositoryModelKey());
 				extRepositoryAdapterCache.clear();
-				_log.error(
-					"saved title : " + extRepositoryFileEntry.getTitle());
+
+				_log.info("saved title : " + extRepositoryFileEntry.getTitle());
 				// repositoryEntryLocalService.updateRepositoryEntry(
 				// fileEntryId,
 				// extRepositoryFileEntry.getExtRepositoryModelKey());
@@ -1339,15 +1488,42 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			File file = driveFilesGet.execute();
 
 			googleDriveCache.remove(extRepositoryObjectKey);
-			
+
 			googleDriveCachedObject =
 				googleDriveCache.getGoogleDriveCachedObject(
 					extRepositoryObjectKey, file, drive);
 		}
 
-		_log.info("extRepositoryObjectKey : " + extRepositoryObjectKey);
+		if (_log.isDebugEnabled()) {
+			_log.debug("extRepositoryObjectKey : " + extRepositoryObjectKey);
+		}
 
 		return googleDriveCachedObject.getFile();
+	}
+
+	/**
+	 * Return results;
+	 */
+	private static class SearchResult {
+
+		public SearchResult(List<File> files, int total) {
+
+			_files = files;
+			_total = total;
+		}
+
+		public List<File> getFiles() {
+
+			return _files;
+		}
+
+		public int getTotal() {
+
+			return _total;
+		}
+
+		private List<File> _files;
+		private int _total;
 	}
 
 	private static final String _CONFIGURATION_WS = "GOOGLEDRIVE_CONFIG";
