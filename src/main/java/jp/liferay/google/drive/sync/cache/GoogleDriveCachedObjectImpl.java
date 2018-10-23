@@ -4,6 +4,8 @@ package jp.liferay.google.drive.sync.cache;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.Revision;
 
+import java.util.List;
+
 import jp.liferay.google.drive.sync.api.GoogleDriveCachedObject;
 
 /**
@@ -16,6 +18,12 @@ public class GoogleDriveCachedObjectImpl implements GoogleDriveCachedObject {
 	public GoogleDriveCachedObjectImpl(File file, Revision revision) {
 
 		_file = file;
+		_revision = revision;
+	}
+
+	public GoogleDriveCachedObjectImpl(List<File> files, Revision revision) {
+
+		_files = files;
 		_revision = revision;
 	}
 
@@ -55,6 +63,18 @@ public class GoogleDriveCachedObjectImpl implements GoogleDriveCachedObject {
 		_revision = revision;
 	}
 
+	/* (non-Javadoc)
+	 * @see jp.liferay.google.drive.sync.cache.GoogleDriveCachedObject#toString()
+	 */
+	@Override
+	public String toString() {
+
+		return "GoogleDriveCachedObjectImpl [_file=" + _file + ", _files=" +
+			_files + ", _revision=" + _revision + "]";
+	}
+
 	private File _file;
+	private List<File> _files;
 	private Revision _revision;
+
 }

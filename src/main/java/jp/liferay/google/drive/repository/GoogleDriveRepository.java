@@ -52,7 +52,6 @@ import com.liferay.portal.kernel.backgroundtask.BackgroundTaskManagerUtil;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.exception.SystemException;
 import com.liferay.portal.kernel.json.JSONFactoryUtil;
-import com.liferay.portal.kernel.json.JSONSerializer;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.RepositoryEntry;
@@ -90,7 +89,10 @@ import jp.liferay.google.drive.repository.model.GoogleDriveFileEntry;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersion;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersionAlternative;
 import jp.liferay.google.drive.repository.model.GoogleDriveFolder;
+import jp.liferay.google.drive.sync.api.GoogleDriveCachedObject;
 import jp.liferay.google.drive.sync.background.GoogleDriveBaseBackgroundTaskExecutor;
+import jp.liferay.google.drive.sync.cache.GoogleDriveCache;
+import jp.liferay.google.drive.sync.cache.GoogleDriveCacheFactory;
 import jp.liferay.google.drive.sync.connection.GoogleDriveConnectionManager;
 import jp.liferay.google.drive.sync.connection.GoogleDriveContext;
 import jp.liferay.google.drive.sync.connection.GoogleDriveSession;
@@ -244,9 +246,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 			driveFilesDelete.execute();
 
-			GoogleDriveCache googleDriveCache = GoogleDriveCache.getInstance();
-
-			googleDriveCache.remove(extRepositoryObjectKey);
+			GoogleDriveCache gdc = GoogleDriveCacheFactory.create();
+			gdc.remove(extRepositoryObjectKey);
 		}
 		catch (IOException ioe) {
 			_log.error(ioe, ioe);
@@ -593,9 +594,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 			List<T> extRepositoryObjects = new ArrayList<>();
 
-			GoogleDriveCache googleDriveCache = GoogleDriveCache.getInstance();
+			GoogleDriveCache gdc = GoogleDriveCacheFactory.create();
 
 			for (File file : files) {
+
 				if (GoogleDriveConstants.FOLDER_MIME_TYPE.equals(
 					file.getMimeType())) {
 					extRepositoryObjects.add(
@@ -606,7 +608,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 						(T) new GoogleDriveFileEntry(file));
 				}
 
-				googleDriveCache.put(file);
+				gdc.getGoogleDriveCachedObject(file.getId(), file, drive);
 			}
 
 			return extRepositoryObjects;
@@ -788,10 +790,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		taskContextMap.put(
 			GoogleDriveConstants.THREAD_POOL_SIZE, _THREAD_POOL_SIZE);
 
-		String serizlizedContext = JSONFactoryUtil.serialize(_connectionManager.getContext());
+		String serizlizedContext =
+			JSONFactoryUtil.serialize(_connectionManager.getContext());
 		taskContextMap.put(
-			GoogleDriveConstants.GOOGLE_DRIVE_CONTEXT,
-			serizlizedContext);
+			GoogleDriveConstants.GOOGLE_DRIVE_CONTEXT, serizlizedContext);
 
 		taskContextMap.put(
 			GoogleDriveConstants.ROOT_FOLDER_KEY,
@@ -811,7 +813,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 				user.getUserId(), user.getGroupId(), jobName,
 				GoogleDriveBaseBackgroundTaskExecutor.class.getName(),
 				taskContextMap, new ServiceContext());
-			
+
 			_log.info(
 				"Google Drive Background task ID : " +
 					String.valueOf(backgroundTask.getBackgroundTaskId()));
@@ -1157,10 +1159,11 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 				extRepositoryAdapterCache.get(
 					extRepositoryFileEntry.getExtRepositoryModelKey());
 				extRepositoryAdapterCache.clear();
-_log.error("saved title : " + extRepositoryFileEntry.getTitle());
-//				repositoryEntryLocalService.updateRepositoryEntry(
-//					fileEntryId,
-//					extRepositoryFileEntry.getExtRepositoryModelKey());
+				_log.error(
+					"saved title : " + extRepositoryFileEntry.getTitle());
+				// repositoryEntryLocalService.updateRepositoryEntry(
+				// fileEntryId,
+				// extRepositoryFileEntry.getExtRepositoryModelKey());
 			}
 
 			if (needsCheckIn) {
@@ -1321,22 +1324,30 @@ _log.error("saved title : " + extRepositoryFileEntry.getTitle());
 	protected File getFile(Drive drive, String extRepositoryObjectKey)
 		throws IOException {
 
-		GoogleDriveCache googleDriveCache = GoogleDriveCache.getInstance();
+		GoogleDriveCache googleDriveCache = GoogleDriveCacheFactory.create();
 
-		File file = googleDriveCache.get(extRepositoryObjectKey);
+		GoogleDriveCachedObject googleDriveCachedObject =
+			googleDriveCache.getGoogleDriveCachedObject(
+				extRepositoryObjectKey, drive);
 
-		if (file == null) {
+		if (null == googleDriveCachedObject.getFile()) {
 			Drive.Files driveFiles = drive.files();
 
 			Drive.Files.Get driveFilesGet =
 				driveFiles.get(extRepositoryObjectKey);
 
-			file = driveFilesGet.execute();
+			File file = driveFilesGet.execute();
 
-			googleDriveCache.put(file);
+			googleDriveCache.remove(extRepositoryObjectKey);
+			
+			googleDriveCachedObject =
+				googleDriveCache.getGoogleDriveCachedObject(
+					extRepositoryObjectKey, file, drive);
 		}
 
-		return file;
+		_log.info("extRepositoryObjectKey : " + extRepositoryObjectKey);
+
+		return googleDriveCachedObject.getFile();
 	}
 
 	private static final String _CONFIGURATION_WS = "GOOGLEDRIVE_CONFIG";

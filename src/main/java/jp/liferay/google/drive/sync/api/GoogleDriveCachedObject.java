@@ -14,4 +14,6 @@ public interface GoogleDriveCachedObject {
 
 	void setRevision(Revision revision);
 
+	String toString();
+
 }
