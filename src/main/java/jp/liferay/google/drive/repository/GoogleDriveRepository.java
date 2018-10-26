@@ -578,6 +578,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 			String key = extRepositoryObjectType.toString() +
 				StringPool.UNDERLINE + extRepositoryFolderKey;
+
 			GoogleDriveCachedObject googleDriveCachedObject =
 				googleDriveCache.getGoogleDriveCachedDirectory(
 					key, files, extRepositoryObjects, false);
@@ -953,133 +954,18 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 	}
 
 	/**
-	 * Building search query for Google Drive
-	 * 
-	 * @param keywords
-	 * @param folderIds
-	 * @param extRepositoryQueryMapper
-	 * @return
-	 * @throws SearchException
+	 * Search 
 	 */
-	protected String getSearchQuery(
-		String keywords, long[] folderIds,
-		ExtRepositoryQueryMapper extRepositoryQueryMapper)
-		throws SearchException {
-
-		StringBundler sb = new StringBundler();
-
-		sb.append("fullText contains '");
-		sb.append(keywords);
-		sb.append("' and ");
-
-		for (int i = 0; i < folderIds.length; i++) {
-			if (i != 0) {
-				sb.append(" and ");
-			}
-
-			long folderId = folderIds[i];
-
-			String extRepositoryFolderKey =
-				extRepositoryQueryMapper.formatParameterValue(
-					"folderId", String.valueOf(folderId));
-
-			sb.append(StringPool.APOSTROPHE);
-			sb.append(extRepositoryFolderKey);
-			sb.append(StringPool.APOSTROPHE);
-
-			sb.append(" in parents");
-		}
-
-		return sb.toString();
-	}
-
-	protected List<File> searchDrive(Drive drive, SearchContext searchContext)
-		throws IOException {
-
-		List<File> googleDriveFolderList = new ArrayList<>();
-
-		String pageToken = null;
-
-		String searchQuery =
-			"fullText contains " + "'" + searchContext.getKeywords() + "'";
-		do {
-			FileList result;
-			result = drive.files().list().setQ(searchQuery).setPageToken(
-				pageToken).execute();
-
-			googleDriveFolderList.addAll(result.getItems());
-
-			pageToken = result.getNextPageToken();
-		}
-		while (pageToken != null);
-
-		if (_log.isDebugEnabled()) {
-			for (File file : googleDriveFolderList) {
-				_log.debug("Found file -> " + file.getTitle());
-			}
-		}
-
-		return googleDriveFolderList;
-	}
-
-	protected List<File> filterList(
-		List<File> fileList, int delta, int maxSize) {
-
-		return fileList.stream().skip(delta).limit(maxSize).collect(
-			Collectors.toList());
-	}
-
-	protected SearchResult searchDriveEx(
-		Drive drive, SearchContext searchContext)
-		throws PortalException {
-
-		List<File> googleDriveFolderList = new ArrayList<>();
-
-		String pageToken = null;
-
-		String searchQuery =
-			"fullText contains " + "'" + searchContext.getKeywords() + "'";
-
-		try {
-			do {
-				FileList result;
-
-				result = drive.files().list().setQ(searchQuery).setPageToken(
-					pageToken).execute();
-
-				googleDriveFolderList.addAll(result.getItems());
-
-				pageToken = result.getNextPageToken();
-			}
-			while (pageToken != null);
-		}
-		catch (IOException e) {
-			throw new PortalException("Search query error.", e);
-		}
-
-		if (_log.isDebugEnabled()) {
-			for (File file : googleDriveFolderList) {
-				_log.debug("Found file -> " + file.getTitle());
-			}
-		}
-
-		List<File> filteredList = filterList(
-			googleDriveFolderList, searchContext.getStart(),
-			searchContext.getEnd());
-
-		return new SearchResult(filteredList, googleDriveFolderList.size());
-	}
-
 	@Override
 	public Hits search(SearchContext searchContext, Query query)
 		throws SearchException {
 
 		long startTime = System.currentTimeMillis();
 
-		List<ExtRepositorySearchResult<?>> extRepositorySearchResults = null;
+		SearchResult<ExtRepositorySearchResult<?>> searchResults = null;
 
 		try {
-			extRepositorySearchResults = search(
+			searchResults = searchEx(
 				searchContext, query, new ExtRepositoryQueryMapperImpl(this));
 		}
 		catch (PortalException | SystemException e) {
@@ -1092,9 +978,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		List<String> snippets = new ArrayList<>();
 		List<Float> scores = new ArrayList<>();
 
-		int total = 0;
-
-		for (ExtRepositorySearchResult<?> extRepositorySearchResult : extRepositorySearchResults) {
+		for (ExtRepositorySearchResult<?> extRepositorySearchResult : searchResults.getLists()) {
 
 			try {
 				ExtRepositoryObjectAdapter<?> extRepositoryEntryAdapter =
@@ -1124,7 +1008,6 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 				snippets.add(extRepositorySearchResult.getSnippet());
 
-				total++;
 			}
 			catch (PortalException | SystemException e) {
 				if (_log.isWarnEnabled()) {
@@ -1139,13 +1022,145 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		Hits hits = new HitsImpl();
 
 		hits.setDocs(documents.toArray(new Document[documents.size()]));
-		hits.setLength(total);
+		hits.setLength(searchResults.getTotal());
 		hits.setQueryTerms(new String[0]);
 		hits.setScores(ArrayUtil.toFloatArray(scores));
 		hits.setSearchTime(searchTime);
 		hits.setSnippets(snippets.toArray(new String[snippets.size()]));
 		hits.setStart(startTime);
+		
 		return hits;
+	}
+
+	/**
+	 * Filter List
+	 * 
+	 * @param fileList
+	 * @param delta
+	 * @param maxSize
+	 * @return
+	 */
+	protected List<File> filterList(
+		List<File> fileList, int delta, int maxSize) {
+
+		return fileList.stream().skip(delta).limit(maxSize).collect(
+			Collectors.toList());
+	}
+
+	/**
+	 * Search Google Drive
+	 * 
+	 * @param drive
+	 * @param searchContext
+	 * @return
+	 * @throws PortalException
+	 */
+	protected SearchResult<File> searchDrive(
+		Drive drive, SearchContext searchContext)
+		throws PortalException {
+
+		List<File> googleDriveFolderList = new ArrayList<>();
+
+		String pageToken = null;
+
+		StringBuilder searchQuery = new StringBuilder();
+		searchQuery.append("fullText contains ");
+		searchQuery.append(StringPool.APOSTROPHE);
+		searchQuery.append(searchContext.getKeywords());
+		searchQuery.append(StringPool.APOSTROPHE);
+		searchQuery.append(" and ");
+		searchQuery.append("trashed = false");
+		
+		try {
+			do {
+				FileList result;
+
+				result = drive.files().list().setQ(
+					searchQuery.toString()).setPageToken(pageToken).execute();
+
+				googleDriveFolderList.addAll(result.getItems());
+
+				pageToken = result.getNextPageToken();
+			}
+			while (pageToken != null);
+		}
+		catch (IOException e) {
+			throw new PortalException("Search query error.", e);
+		}
+
+		if (_log.isDebugEnabled()) {
+			for (File file : googleDriveFolderList) {
+				_log.debug("Found file -> " + file.getTitle());
+			}
+		}
+
+		/**
+		 * Filter the search data with Search Context
+		 */
+		List<File> filteredList = filterList(
+			googleDriveFolderList, searchContext.getStart(),
+			searchContext.getEnd());
+
+		if (_log.isDebugEnabled()) {
+			_log.debug(
+				"Search -> Start : " + searchContext.getStart() + " End : " +
+					searchContext.getEnd() + " Size " +
+					googleDriveFolderList.size());
+
+		}
+
+		return new SearchResult<File>(
+			filteredList, googleDriveFolderList.size());
+	}
+
+	/**
+	 * Convert Google Drive Search result to Liferay interface
+	 * 
+	 * @param searchContext
+	 * @param query
+	 * @param extRepositoryQueryMapper
+	 * @return
+	 * @throws PortalException
+	 */
+	public SearchResult<ExtRepositorySearchResult<?>> searchEx(
+		SearchContext searchContext, Query query,
+		ExtRepositoryQueryMapper extRepositoryQueryMapper)
+		throws PortalException {
+
+		Drive drive = _connectionManager.getDrive();
+
+		SearchResult<File> searchResults = searchDrive(drive, searchContext);
+
+		List<ExtRepositorySearchResult<?>> extRepositorySearchResults =
+			new ArrayList<>(searchResults.getLists().size());
+
+		for (File file : searchResults.getLists()) {
+
+			if (GoogleDriveConstants.FOLDER_MIME_TYPE.equals(
+				file.getMimeType())) {
+				GoogleDriveFolder googleDriveFolder =
+					new GoogleDriveFolder(file, getRootFolderKey());
+
+				ExtRepositorySearchResult<GoogleDriveFolder> extRepositorySearchResult =
+					new ExtRepositorySearchResult<>(
+						googleDriveFolder, 1.0f, file.getDescription());
+
+				extRepositorySearchResults.add(extRepositorySearchResult);
+			}
+			else {
+				GoogleDriveFileEntry googleDriveFileEntry =
+					new GoogleDriveFileEntry(file);
+
+				ExtRepositorySearchResult<GoogleDriveFileEntry> extRepositorySearchResult =
+					new ExtRepositorySearchResult<>(
+						googleDriveFileEntry, 1.0f, file.getDescription());
+
+				extRepositorySearchResults.add(extRepositorySearchResult);
+			}
+		}
+
+		return new SearchResult<ExtRepositorySearchResult<?>>(
+			extRepositorySearchResults, searchResults.getTotal());
 	}
 
 	@Override
@@ -1154,46 +1169,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		ExtRepositoryQueryMapper extRepositoryQueryMapper)
 		throws PortalException {
 
-		try {
-			Drive drive = _connectionManager.getDrive();
-
-			List<File> files = searchDrive(drive, searchContext);
-
-			List<ExtRepositorySearchResult<?>> extRepositorySearchResults =
-				new ArrayList<>(files.size());
-
-			for (File file : files) {
-
-				if (GoogleDriveConstants.FOLDER_MIME_TYPE.equals(
-					file.getMimeType())) {
-					GoogleDriveFolder googleDriveFolder =
-						new GoogleDriveFolder(file, getRootFolderKey());
-
-					ExtRepositorySearchResult<GoogleDriveFolder> extRepositorySearchResult =
-						new ExtRepositorySearchResult<>(
-							googleDriveFolder, 1.0f, StringPool.BLANK);
-
-					extRepositorySearchResults.add(extRepositorySearchResult);
-				}
-				else {
-					GoogleDriveFileEntry googleDriveFileEntry =
-						new GoogleDriveFileEntry(file);
-
-					ExtRepositorySearchResult<GoogleDriveFileEntry> extRepositorySearchResult =
-						new ExtRepositorySearchResult<>(
-							googleDriveFileEntry, 1.0f, StringPool.BLANK);
-
-					extRepositorySearchResults.add(extRepositorySearchResult);
-				}
-			}
-
-			return extRepositorySearchResults;
-		}
-		catch (IOException ioe) {
-			_log.error(ioe, ioe);
-
-			throw new SystemException(ioe);
-		}
+		throw new UnsupportedOperationException();
 	}
 
 	/**
@@ -1504,17 +1480,17 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 	/**
 	 * Return results;
 	 */
-	private static class SearchResult {
+	private static class SearchResult<T> {
 
-		public SearchResult(List<File> files, int total) {
+		public SearchResult(List<T> list, int total) {
 
-			_files = files;
+			_list = list;
 			_total = total;
 		}
 
-		public List<File> getFiles() {
+		public List<T> getLists() {
 
-			return _files;
+			return _list;
 		}
 
 		public int getTotal() {
@@ -1522,7 +1498,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			return _total;
 		}
 
-		private List<File> _files;
+		private List<T> _list;
 		private int _total;
 	}
 
