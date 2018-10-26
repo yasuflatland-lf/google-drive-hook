@@ -9,6 +9,7 @@ import com.liferay.portal.kernel.webcache.WebCacheItem;
 import java.util.ArrayList;
 import java.util.List;
 
+import jp.liferay.google.drive.repository.constants.GoogleDriveConstants;
 import jp.liferay.google.drive.sync.api.GoogleDriveCachedObject;
 
 /**
@@ -26,7 +27,7 @@ public class GoogleDriveDirWebCacheItem<T extends ExtRepositoryObject>
 		List<File> files, List<T> extRepositoryObjects, long refreshTime,
 		boolean initialize) {
 
-		_refreshTime = GoogleDriveCacheConstants._REFRESH_TIME;
+		_refreshTime = GoogleDriveConstants._REFRESH_TIME;
 
 		if (refreshTime < 0) {
 			_refreshTime = refreshTime;

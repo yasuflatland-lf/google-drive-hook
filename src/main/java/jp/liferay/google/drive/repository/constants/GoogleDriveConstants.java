@@ -1,6 +1,8 @@
 
 package jp.liferay.google.drive.repository.constants;
 
+import com.liferay.portal.kernel.util.Time;
+
 /**
  * @author Yasuyuki Takeo
  */
@@ -20,4 +22,10 @@ public class GoogleDriveConstants {
 	 * The root folder key of the target Google Drive
 	 */
 	public static final String ROOT_FOLDER_KEY = "rootFolderKey";	
+	
+	public static final long BASE_UNIT_FOR_CACHE = Time.MINUTE;
+
+	public static final long CACHE_DURAITON = 30L;
+	
+	public static final long _REFRESH_TIME = BASE_UNIT_FOR_CACHE * CACHE_DURAITON;
 }

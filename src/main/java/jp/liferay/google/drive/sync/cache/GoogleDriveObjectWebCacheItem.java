@@ -12,6 +12,7 @@ import com.liferay.portal.kernel.webcache.WebCacheItem;
 
 import java.io.IOException;
 
+import jp.liferay.google.drive.repository.constants.GoogleDriveConstants;
 import jp.liferay.google.drive.sync.api.GoogleDriveCachedObject;
 
 /**
@@ -25,7 +26,7 @@ public class GoogleDriveObjectWebCacheItem implements WebCacheItem {
 
 	public GoogleDriveObjectWebCacheItem(Drive drive, long refreshTime) {
 
-		_refreshTime = GoogleDriveCacheConstants._REFRESH_TIME;
+		_refreshTime = GoogleDriveConstants._REFRESH_TIME;
 
 		if (refreshTime < 0) {
 			_refreshTime = refreshTime;
@@ -40,7 +41,7 @@ public class GoogleDriveObjectWebCacheItem implements WebCacheItem {
 
 		_file = file;
 
-		_refreshTime = GoogleDriveCacheConstants._REFRESH_TIME;
+		_refreshTime = GoogleDriveConstants._REFRESH_TIME;
 
 		if (refreshTime < 0) {
 			_refreshTime = refreshTime;
@@ -67,19 +68,12 @@ public class GoogleDriveObjectWebCacheItem implements WebCacheItem {
 		File file = null;
 		Revision revision = null;
 
-		_log.info("Missed cache.");
-
 		// File
 		if (null != _file) {
 			if (_log.isDebugEnabled()) {
 				_log.debug(
-					"Store cache : _file : Key <" + extRepositoryObjectKey +
-						"> :" + _file.toString());
-			}
-			else {
-				_log.info(
-					"Store cache : fetch and store : Key <" + _file.getTitle() +
-						">");
+					"Put <" + extRepositoryObjectKey + "> :" +
+						_file.toString());
 			}
 
 			return getGoogleDriveCachedObject(_file, null);
@@ -95,13 +89,8 @@ public class GoogleDriveObjectWebCacheItem implements WebCacheItem {
 
 			if (_log.isDebugEnabled()) {
 				_log.debug(
-					"Store cache : fetch and store : Key <" +
-						extRepositoryObjectKey + "> :" + _file.toString());
-			}
-			else {
-				_log.info(
-					"Store cache : fetch and store : Key <" + _file.getTitle() +
-						">");
+					"Fetch and Put <" + extRepositoryObjectKey + "> :" +
+						_file.toString());
 			}
 
 		}
