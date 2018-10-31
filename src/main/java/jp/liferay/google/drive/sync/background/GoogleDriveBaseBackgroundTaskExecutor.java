@@ -21,7 +21,8 @@ import java.util.concurrent.ForkJoinPool;
 import org.osgi.service.component.annotations.Component;
 
 import jp.liferay.google.drive.repository.constants.GoogleDriveConstants;
-import jp.liferay.google.drive.sync.connection.GoogleDriveConnectionManager;
+import jp.liferay.google.drive.sync.connection.GoogleDriveConnection;
+import jp.liferay.google.drive.sync.connection.GoogleDriveConnectionImpl;
 import jp.liferay.google.drive.sync.connection.GoogleDriveContext;
 
 /**
@@ -66,8 +67,8 @@ public class GoogleDriveBaseBackgroundTaskExecutor
 
 		_log.info("parallelism : " + String.valueOf(parallelism));
 
-		GoogleDriveConnectionManager connectionManager =
-			new GoogleDriveConnectionManager(context);
+		GoogleDriveConnection connectionManager =
+			new GoogleDriveConnectionImpl(context);
 
 		Drive drive = connectionManager.getDrive();
 

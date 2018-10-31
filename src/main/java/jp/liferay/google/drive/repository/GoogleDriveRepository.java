@@ -41,6 +41,8 @@ import com.liferay.document.library.repository.external.ExtRepositoryFolder;
 import com.liferay.document.library.repository.external.ExtRepositoryObject;
 import com.liferay.document.library.repository.external.ExtRepositoryObjectType;
 import com.liferay.document.library.repository.external.ExtRepositorySearchResult;
+import com.liferay.document.library.repository.external.cache.ConnectionBuilder;
+import com.liferay.document.library.repository.external.cache.ConnectionCache;
 import com.liferay.document.library.repository.external.model.ExtRepositoryFileEntryAdapter;
 import com.liferay.document.library.repository.external.model.ExtRepositoryFolderAdapter;
 import com.liferay.document.library.repository.external.model.ExtRepositoryObjectAdapter;
@@ -56,6 +58,7 @@ import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.model.RepositoryEntry;
 import com.liferay.portal.kernel.model.User;
+import com.liferay.portal.kernel.repository.RepositoryException;
 import com.liferay.portal.kernel.repository.model.FileEntry;
 import com.liferay.portal.kernel.search.Document;
 import com.liferay.portal.kernel.search.DocumentImpl;
@@ -101,7 +104,8 @@ import jp.liferay.google.drive.sync.api.GoogleDriveCachedObject;
 import jp.liferay.google.drive.sync.background.GoogleDriveBaseBackgroundTaskExecutor;
 import jp.liferay.google.drive.sync.cache.GoogleDriveCache;
 import jp.liferay.google.drive.sync.cache.GoogleDriveCacheFactory;
-import jp.liferay.google.drive.sync.connection.GoogleDriveConnectionManager;
+import jp.liferay.google.drive.sync.connection.GoogleDriveConnection;
+import jp.liferay.google.drive.sync.connection.GoogleDriveConnectionFactory;
 import jp.liferay.google.drive.sync.connection.GoogleDriveContext;
 import jp.liferay.google.drive.sync.connection.GoogleDriveSession;
 
@@ -112,7 +116,7 @@ import jp.liferay.google.drive.sync.connection.GoogleDriveSession;
  * @author Yasuyuki Takeo
  */
 public class GoogleDriveRepository extends ExtRepositoryAdapter
-	implements ExtRepository {
+	implements ConnectionBuilder<GoogleDriveConnection>, ExtRepository {
 
 	public GoogleDriveRepository() {
 
@@ -178,7 +182,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		String extRepositoryFileEntryKey) {
 
 		try {
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+			Drive drive = googleDriveConnection.getDrive();
 
 			File file = getFile(drive, extRepositoryFileEntryKey);
 
@@ -200,7 +206,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+			Drive drive = googleDriveConnection.getDrive();
 
 			Drive.Files driveFiles = drive.files();
 
@@ -245,7 +253,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+			Drive drive = googleDriveConnection.getDrive();
 
 			Drive.Files driveFiles = drive.files();
 
@@ -310,7 +320,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			return null;
 		}
 
-		Drive drive = _connectionManager.getDrive();
+		GoogleDriveConnection googleDriveConnection =
+			getGoogleDriveConnection();
+		Drive drive = googleDriveConnection.getDrive();
 
 		HttpRequestFactory httpRequestFactory = drive.getRequestFactory();
 
@@ -337,7 +349,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+			Drive drive = googleDriveConnection.getDrive();
 
 			Drive.Revisions driveRevisions = drive.revisions();
 
@@ -388,7 +402,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			new ArrayList<>();
 
 		try {
-			drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+			drive = googleDriveConnection.getDrive();
 
 			Drive.Revisions driveRevisions = drive.revisions();
 
@@ -471,7 +487,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+			Drive drive = googleDriveConnection.getDrive();
 
 			File file = getFile(drive, extRepositoryObjectKey);
 
@@ -525,7 +543,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 			sb.append(GoogleDriveConstants.FOLDER_MIME_TYPE);
 
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+			Drive drive = googleDriveConnection.getDrive();
 
 			Drive.Files driveFiles = drive.files();
 
@@ -588,7 +608,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 				return googleDriveCachedObject.getExtRepositoryObjects();
 			}
 
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+			Drive drive = googleDriveConnection.getDrive();
 
 			Drive.Files driveFiles = drive.files();
 
@@ -676,7 +698,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+			Drive drive = googleDriveConnection.getDrive();
 
 			File file =
 				getFile(drive, extRepositoryObject.getExtRepositoryModelKey());
@@ -708,8 +732,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 	public String getRootFolderKey() {
 
 		try {
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
 			GoogleDriveSession googleDriveSession =
-				_connectionManager.getGoogleDriveSession();
+				googleDriveConnection.getGoogleDriveSession();
 
 			return googleDriveSession.getRootFolderKey();
 		}
@@ -801,13 +827,17 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			_log.debug("Refresh Token : " + googleRefreshToken);
 		}
 
-		GoogleDriveContext context = new GoogleDriveContext(
+		_connectionCache = new ConnectionCache<>(
+			GoogleDriveConnection.class, getRepositoryId(), this);
+
+		_googleDriveContext = new GoogleDriveContext(
 			googleClientId, googleClientSecret, googleAccessToken,
 			googleRefreshToken);
 
-		_connectionManager = new GoogleDriveConnectionManager(context);
+		GoogleDriveConnection googleDriveConnection =
+			getGoogleDriveConnection();
 
-		_connectionManager.getDrive();
+		googleDriveConnection.getDrive();
 	}
 
 	/**
@@ -827,14 +857,17 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		taskContextMap.put(
 			GoogleDriveConstants.THREAD_POOL_SIZE, _THREAD_POOL_SIZE);
 
+		GoogleDriveConnection googleDriveConnection =
+			getGoogleDriveConnection();
+
 		String serizlizedContext =
-			JSONFactoryUtil.serialize(_connectionManager.getContext());
+			JSONFactoryUtil.serialize(googleDriveConnection.getContext());
 		taskContextMap.put(
 			GoogleDriveConstants.GOOGLE_DRIVE_CONTEXT, serizlizedContext);
 
 		taskContextMap.put(
 			GoogleDriveConstants.ROOT_FOLDER_KEY,
-			_connectionManager.getGoogleDriveSession().getRootFolderKey());
+			googleDriveConnection.getGoogleDriveSession().getRootFolderKey());
 
 		final String jobName =
 			GoogleDriveBaseBackgroundTaskExecutor.getBackgroundTaskName(
@@ -876,7 +909,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+
+			Drive drive = googleDriveConnection.getDrive();
 
 			File file = getFile(drive, extRepositoryObjectKey);
 
@@ -911,7 +947,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+
+			Drive drive = googleDriveConnection.getDrive();
 
 			File file = getFile(drive, extRepositoryObjectKey);
 
@@ -965,7 +1004,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		SearchResult<File> searchResults = null;
 
 		try {
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+
+			Drive drive = googleDriveConnection.getDrive();
 			searchResults = searchDrive(drive, searchContext);
 		}
 		catch (PortalException | SystemException e) {
@@ -1142,7 +1184,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		throws PortalException {
 
 		try {
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+
+			Drive drive = googleDriveConnection.getDrive();
 
 			Drive.Files driveFiles = drive.files();
 
@@ -1342,7 +1387,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			file.setDescription(description);
 			file.setMimeType(mimeType);
 
-			Drive drive = _connectionManager.getDrive();
+			GoogleDriveConnection googleDriveConnection =
+				getGoogleDriveConnection();
+
+			Drive drive = googleDriveConnection.getDrive();
 
 			Drive.Files driveFiles = drive.files();
 
@@ -1419,6 +1467,32 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 	}
 
 	/**
+	 * Get GoogleDriveConnection
+	 * 
+	 * @return GoogleDriveConnection
+	 * @throws RepositoryException
+	 */
+	public GoogleDriveConnection getGoogleDriveConnection()
+		throws RepositoryException {
+
+		return _connectionCache.getConnection();
+	}
+
+	@Override
+	public GoogleDriveConnection buildConnection()
+		throws RepositoryException {
+
+		try {
+			return GoogleDriveConnectionFactory.getInstance(
+				_googleDriveContext);
+		}
+		catch (Exception e) {
+			throw new RepositoryException(
+				"Unable to communicate with the Google Drive server", e);
+		}
+	}
+
+	/**
 	 * Return results;
 	 */
 	private static class SearchResult<T> {
@@ -1443,6 +1517,10 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		private int _total = 0;
 	}
 
+	private ConnectionCache<GoogleDriveConnection> _connectionCache;
+
+	private GoogleDriveContext _googleDriveContext;
+
 	private static final String _CONFIGURATION_WS = "GOOGLEDRIVE_CONFIG";
 
 	private static final String _GOOGLE_CLIENT_ID = "GOOGLE_CLIENT_ID";
@@ -1466,8 +1544,6 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 	// TODO: Change this value configuable by a property
 	private int _THREAD_POOL_SIZE = 5;
-
-	private GoogleDriveConnectionManager _connectionManager;
 
 	private static final Log _log =
 		LogFactoryUtil.getLog(GoogleDriveRepository.class);
