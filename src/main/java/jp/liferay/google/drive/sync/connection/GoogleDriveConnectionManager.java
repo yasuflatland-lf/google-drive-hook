@@ -22,21 +22,26 @@ import java.io.IOException;
 import javax.servlet.http.HttpSession;
 
 /**
- * Google Drive Connection
+ * Google Drive Connection Manager
  * 
  * @author Yasuyuki Takeo
  */
-public class GoogleDriveConnectionImpl implements GoogleDriveConnection {
+public class GoogleDriveConnectionManager {
 
-	public GoogleDriveConnectionImpl(GoogleDriveContext context) {
+	public GoogleDriveConnectionManager(GoogleDriveContext context) {
 
 		_context = context;
 	}
 
-	/* (non-Javadoc)
-	 * @see jp.liferay.google.drive.sync.connection.GoogleDriveConnection#getDrive()
+	/**
+	 * Get Drive object
+	 * 
+	 * Drive is a handler for Google Drive
+	 * 
+	 * @param context
+	 * @return Drive Object
+	 * @throws PortalException
 	 */
-	@Override
 	public Drive getDrive()
 		throws PortalException {
 
@@ -45,10 +50,12 @@ public class GoogleDriveConnectionImpl implements GoogleDriveConnection {
 		return googleDriveSession.getDrive();
 	}
 
-	/* (non-Javadoc)
-	 * @see jp.liferay.google.drive.sync.connection.GoogleDriveConnection#getGoogleDriveSession()
+	/**
+	 * Get Google Drive Session
+	 * 
+	 * @return
+	 * @throws PortalException
 	 */
-	@Override
 	public GoogleDriveSession getGoogleDriveSession()
 		throws PortalException {
 
@@ -175,10 +182,6 @@ public class GoogleDriveConnectionImpl implements GoogleDriveConnection {
 		return new GoogleDriveSession(drive, about.getRootFolderId());
 	}
 
-	/* (non-Javadoc)
-	 * @see jp.liferay.google.drive.sync.connection.GoogleDriveConnection#getContext()
-	 */
-	@Override
 	public GoogleDriveContext getContext() {
 
 		return _context;
@@ -188,5 +191,5 @@ public class GoogleDriveConnectionImpl implements GoogleDriveConnection {
 	private GoogleDriveContext _context;
 
 	private static final Log _log =
-		LogFactoryUtil.getLog(GoogleDriveConnectionImpl.class);
+		LogFactoryUtil.getLog(GoogleDriveConnectionManager.class);
 }
