@@ -23,10 +23,10 @@ public class GoogleDriveCache implements Cloneable {
 	@Override
 	public GoogleDriveCache clone() {
 
-		if (_log.isInfoEnabled()) {
+		if (_log.isDebugEnabled()) {
 			Thread currentThread = Thread.currentThread();
 
-			_log.info("Create " + currentThread.getName());
+			_log.debug("Create " + currentThread.getName());
 		}
 
 		try {
@@ -62,7 +62,9 @@ public class GoogleDriveCache implements Cloneable {
 			return googleDriveCachedObject;
 		}
 		catch (ClassCastException cce) {
-			_log.info("Retrive object. Key <" + extRepositoryObjectKey + ">");
+			if (_log.isDebugEnabled()) {
+				_log.debug("Retrive object. Key <" + extRepositoryObjectKey + ">");
+			}			
 
 			WebCachePoolUtil.remove(extRepositoryObjectKey);
 
@@ -102,7 +104,9 @@ public class GoogleDriveCache implements Cloneable {
 			return googleDriveCachedObject;
 		}
 		catch (ClassCastException cce) {
-			_log.info("Retrive object. Key <" + extRepositoryObjectKey + ">");
+			if (_log.isDebugEnabled()) {
+				_log.debug("Retrive object. Key <" + extRepositoryObjectKey + ">");
+			}				
 
 			WebCachePoolUtil.remove(extRepositoryObjectKey);
 
@@ -142,7 +146,9 @@ public class GoogleDriveCache implements Cloneable {
 			return googleDriveCachedObject;
 		}
 		catch (ClassCastException cce) {
-			_log.info("Retrive object. Key <" + extRepositoryObjectKey + ">");
+			if(_log.isDebugEnabled()) {
+				_log.debug("Retrive object. Key <" + extRepositoryObjectKey + ">");
+			}
 
 			WebCachePoolUtil.remove(extRepositoryObjectKey);
 
@@ -207,7 +213,8 @@ public class GoogleDriveCache implements Cloneable {
 
 		if (_log.isDebugEnabled()) {
 			_log.debug("Cache removed : " + extRepositoryObjectKey);
-		}
+		}			
+
 		WebCachePoolUtil.remove(extRepositoryObjectKey);
 	}
 

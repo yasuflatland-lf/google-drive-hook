@@ -40,7 +40,6 @@ import com.liferay.document.library.repository.external.ExtRepositoryFileVersion
 import com.liferay.document.library.repository.external.ExtRepositoryFolder;
 import com.liferay.document.library.repository.external.ExtRepositoryObject;
 import com.liferay.document.library.repository.external.ExtRepositoryObjectType;
-import com.liferay.document.library.repository.external.ExtRepositoryQueryMapperImpl;
 import com.liferay.document.library.repository.external.ExtRepositorySearchResult;
 import com.liferay.document.library.repository.external.model.ExtRepositoryFileEntryAdapter;
 import com.liferay.document.library.repository.external.model.ExtRepositoryFolderAdapter;
@@ -97,6 +96,7 @@ import jp.liferay.google.drive.repository.model.GoogleDriveFileEntry;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersion;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersionAlternative;
 import jp.liferay.google.drive.repository.model.GoogleDriveFolder;
+import jp.liferay.google.drive.repository.model.GoogleDriveModel;
 import jp.liferay.google.drive.sync.api.GoogleDriveCachedObject;
 import jp.liferay.google.drive.sync.background.GoogleDriveBaseBackgroundTaskExecutor;
 import jp.liferay.google.drive.sync.cache.GoogleDriveCache;
@@ -954,7 +954,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 	}
 
 	/**
-	 * Search 
+	 * Search
 	 */
 	@Override
 	public Hits search(SearchContext searchContext, Query query)
@@ -962,11 +962,11 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 		long startTime = System.currentTimeMillis();
 
-		SearchResult<ExtRepositorySearchResult<?>> searchResults = null;
+		SearchResult<File> searchResults = null;
 
 		try {
-			searchResults = searchEx(
-				searchContext, query, new ExtRepositoryQueryMapperImpl(this));
+			Drive drive = _connectionManager.getDrive();
+			searchResults = searchDrive(drive, searchContext);
 		}
 		catch (PortalException | SystemException e) {
 			throw new SearchException("Unable to perform search", e);
@@ -978,35 +978,26 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		List<String> snippets = new ArrayList<>();
 		List<Float> scores = new ArrayList<>();
 
-		for (ExtRepositorySearchResult<?> extRepositorySearchResult : searchResults.getLists()) {
+		for (File file : searchResults.getLists()) {
 
 			try {
-				ExtRepositoryObjectAdapter<?> extRepositoryEntryAdapter =
-					_toExtRepositoryObjectAdapter(
-						ExtRepositoryObjectAdapterType.OBJECT,
-						extRepositorySearchResult.getObject());
-
 				Document document = new DocumentImpl();
 
+				RepositoryEntry repositoryEntry =
+					getRepositoryEntry(file.getId());
+
 				document.addKeyword(
-					Field.ENTRY_CLASS_NAME,
-					extRepositoryEntryAdapter.getModelClassName());
+					Field.ENTRY_CLASS_NAME, GoogleDriveModel.class.getName());
 				document.addKeyword(
 					Field.ENTRY_CLASS_PK,
-					extRepositoryEntryAdapter.getPrimaryKey());
-				document.addKeyword(
-					Field.TITLE, extRepositoryEntryAdapter.getName());
+					repositoryEntry.getRepositoryEntryId());
+				document.addKeyword(Field.TITLE, file.getTitle());
+				document.addKeyword("thumbnailSrc", file.getThumbnailLink());
+				document.addKeyword(Field.URL, file.getAlternateLink());
 
 				documents.add(document);
-
-				if (queryConfig.isScoreEnabled()) {
-					scores.add(extRepositorySearchResult.getScore());
-				}
-				else {
-					scores.add(1.0F);
-				}
-
-				snippets.add(extRepositorySearchResult.getSnippet());
+				scores.add(1.0F);
+				snippets.add("");
 
 			}
 			catch (PortalException | SystemException e) {
@@ -1028,7 +1019,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		hits.setSearchTime(searchTime);
 		hits.setSnippets(snippets.toArray(new String[snippets.size()]));
 		hits.setStart(startTime);
-		
+
 		return hits;
 	}
 
@@ -1070,7 +1061,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 		searchQuery.append(StringPool.APOSTROPHE);
 		searchQuery.append(" and ");
 		searchQuery.append("trashed = false");
-		
+
 		try {
 			do {
 				FileList result;
@@ -1111,56 +1102,6 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 		return new SearchResult<File>(
 			filteredList, googleDriveFolderList.size());
-	}
-
-	/**
-	 * Convert Google Drive Search result to Liferay interface
-	 * 
-	 * @param searchContext
-	 * @param query
-	 * @param extRepositoryQueryMapper
-	 * @return
-	 * @throws PortalException
-	 */
-	public SearchResult<ExtRepositorySearchResult<?>> searchEx(
-		SearchContext searchContext, Query query,
-		ExtRepositoryQueryMapper extRepositoryQueryMapper)
-		throws PortalException {
-
-		Drive drive = _connectionManager.getDrive();
-
-		SearchResult<File> searchResults = searchDrive(drive, searchContext);
-
-		List<ExtRepositorySearchResult<?>> extRepositorySearchResults =
-			new ArrayList<>(searchResults.getLists().size());
-
-		for (File file : searchResults.getLists()) {
-
-			if (GoogleDriveConstants.FOLDER_MIME_TYPE.equals(
-				file.getMimeType())) {
-				GoogleDriveFolder googleDriveFolder =
-					new GoogleDriveFolder(file, getRootFolderKey());
-
-				ExtRepositorySearchResult<GoogleDriveFolder> extRepositorySearchResult =
-					new ExtRepositorySearchResult<>(
-						googleDriveFolder, 1.0f, file.getDescription());
-
-				extRepositorySearchResults.add(extRepositorySearchResult);
-			}
-			else {
-				GoogleDriveFileEntry googleDriveFileEntry =
-					new GoogleDriveFileEntry(file);
-
-				ExtRepositorySearchResult<GoogleDriveFileEntry> extRepositorySearchResult =
-					new ExtRepositorySearchResult<>(
-						googleDriveFileEntry, 1.0f, file.getDescription());
-
-				extRepositorySearchResults.add(extRepositorySearchResult);
-			}
-		}
-
-		return new SearchResult<ExtRepositorySearchResult<?>>(
-			extRepositorySearchResults, searchResults.getTotal());
 	}
 
 	@Override
@@ -1498,8 +1439,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			return _total;
 		}
 
-		private List<T> _list;
-		private int _total;
+		private List<T> _list = new ArrayList<>();
+		private int _total = 0;
 	}
 
 	private static final String _CONFIGURATION_WS = "GOOGLEDRIVE_CONFIG";
