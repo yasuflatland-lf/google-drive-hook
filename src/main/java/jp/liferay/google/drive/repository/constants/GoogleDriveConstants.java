@@ -19,6 +19,11 @@ public class GoogleDriveConstants {
 	public static final String GOOGLE_DRIVE_CONTEXT = "googleDriveContext";	
 	
 	/**
+	 * Googld Drive Repository ID
+	 */
+	public static final String GOOGLE_DRIVE_REPOSITORY_ID = "googleDriveRepositoryId";	
+
+	/**
 	 * The root folder key of the target Google Drive
 	 */
 	public static final String ROOT_FOLDER_KEY = "rootFolderKey";	

@@ -15,6 +15,7 @@ import com.liferay.portal.kernel.security.auth.PrincipalException;
 import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
 import com.liferay.portal.kernel.service.UserLocalServiceUtil;
 import com.liferay.portal.kernel.servlet.PortalSessionThreadLocal;
+import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.kernel.util.TransientValue;
 
 import java.io.IOException;
@@ -28,15 +29,16 @@ import javax.servlet.http.HttpSession;
  */
 public class GoogleDriveConnectionManager {
 
-	public GoogleDriveConnectionManager(GoogleDriveContext context) {
+	public GoogleDriveConnectionManager(
+		GoogleDriveContext context, long repositoryId) {
 
 		_context = context;
+		_sessionKey = GoogleDriveConnectionManager.class.getName() +
+			StringPool.POUND + repositoryId;
 	}
 
 	/**
-	 * Get Drive object
-	 * 
-	 * Drive is a handler for Google Drive
+	 * Get Drive object Drive is a handler for Google Drive
 	 * 
 	 * @param context
 	 * @return Drive Object
@@ -90,7 +92,7 @@ public class GoogleDriveConnectionManager {
 		}
 
 		Object obj =
-			httpSession.getAttribute(GoogleDriveSession.class.getName());
+			httpSession.getAttribute(_sessionKey);
 
 		if (obj != null) {
 			try {
@@ -119,7 +121,7 @@ public class GoogleDriveConnectionManager {
 			googleDriveSession = buildGoogleDriveSession(context);
 
 			httpSession.setAttribute(
-				GoogleDriveSession.class.getName(),
+				_sessionKey,
 				new TransientValue<GoogleDriveSession>(googleDriveSession));
 		}
 		catch (Exception e) {
@@ -189,6 +191,8 @@ public class GoogleDriveConnectionManager {
 	}
 
 	private GoogleDriveContext _context;
+
+	private final String _sessionKey;
 
 	private static final Log _log =
 		LogFactoryUtil.getLog(GoogleDriveConnectionManager.class);

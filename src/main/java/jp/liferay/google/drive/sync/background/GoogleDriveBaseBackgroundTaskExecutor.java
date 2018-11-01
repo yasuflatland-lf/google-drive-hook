@@ -27,11 +27,7 @@ import jp.liferay.google.drive.sync.connection.GoogleDriveContext;
 /**
  * @author Yasuyuki Takeo
  */
-@Component(
-	immediate = true, 
-	property = "background.task.executor.class.name=jp.liferay.google.drive.sync.background.GoogleDriveBaseBackgroundTaskExecutor",
-	service = BackgroundTaskExecutor.class
-)
+@Component(immediate = true, property = "background.task.executor.class.name=jp.liferay.google.drive.sync.background.GoogleDriveBaseBackgroundTaskExecutor", service = BackgroundTaskExecutor.class)
 public class GoogleDriveBaseBackgroundTaskExecutor
 	extends BaseBackgroundTaskExecutor {
 
@@ -59,7 +55,11 @@ public class GoogleDriveBaseBackgroundTaskExecutor
 		String contextJson = (String) taskContextMap.get(
 			GoogleDriveConstants.GOOGLE_DRIVE_CONTEXT);
 
-		GoogleDriveContext context = (GoogleDriveContext)JSONFactoryUtil.deserialize(contextJson);
+		long googleDriveRepositoryId = (long) taskContextMap.get(
+			GoogleDriveConstants.GOOGLE_DRIVE_REPOSITORY_ID);
+
+		GoogleDriveContext context =
+			(GoogleDriveContext) JSONFactoryUtil.deserialize(contextJson);
 
 		String rootFolderKey =
 			(String) taskContextMap.get(GoogleDriveConstants.ROOT_FOLDER_KEY);
@@ -67,7 +67,7 @@ public class GoogleDriveBaseBackgroundTaskExecutor
 		_log.info("parallelism : " + String.valueOf(parallelism));
 
 		GoogleDriveConnectionManager connectionManager =
-			new GoogleDriveConnectionManager(context);
+			new GoogleDriveConnectionManager(context, googleDriveRepositoryId);
 
 		Drive drive = connectionManager.getDrive();
 

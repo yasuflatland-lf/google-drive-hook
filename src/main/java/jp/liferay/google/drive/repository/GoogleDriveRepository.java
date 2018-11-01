@@ -805,7 +805,8 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			googleClientId, googleClientSecret, googleAccessToken,
 			googleRefreshToken);
 
-		_connectionManager = new GoogleDriveConnectionManager(context);
+		_connectionManager =
+			new GoogleDriveConnectionManager(context, getRepositoryId());
 
 		_connectionManager.getDrive();
 	}
@@ -829,8 +830,13 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 		String serizlizedContext =
 			JSONFactoryUtil.serialize(_connectionManager.getContext());
+		
 		taskContextMap.put(
 			GoogleDriveConstants.GOOGLE_DRIVE_CONTEXT, serizlizedContext);
+
+		taskContextMap.put(
+			GoogleDriveConstants.GOOGLE_DRIVE_REPOSITORY_ID,
+			String.valueOf(getRepositoryId()));
 
 		taskContextMap.put(
 			GoogleDriveConstants.ROOT_FOLDER_KEY,
