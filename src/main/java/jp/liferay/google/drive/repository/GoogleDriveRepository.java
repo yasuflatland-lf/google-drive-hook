@@ -97,6 +97,7 @@ import jp.liferay.google.drive.repository.model.GoogleDriveFileVersion;
 import jp.liferay.google.drive.repository.model.GoogleDriveFileVersionAlternative;
 import jp.liferay.google.drive.repository.model.GoogleDriveFolder;
 import jp.liferay.google.drive.repository.model.GoogleDriveModel;
+import jp.liferay.google.drive.repository.model.GoogleDriveObject;
 import jp.liferay.google.drive.sync.api.GoogleDriveCachedObject;
 import jp.liferay.google.drive.sync.background.GoogleDriveBaseBackgroundTaskExecutor;
 import jp.liferay.google.drive.sync.cache.GoogleDriveCache;
@@ -982,8 +983,15 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 					Field.ENTRY_CLASS_PK,
 					repositoryEntry.getRepositoryEntryId());
 				document.addKeyword(Field.TITLE, file.getTitle());
-				document.addKeyword("thumbnailSrc", file.getThumbnailLink());
+				document.addKeyword(
+					GoogleDriveConstants.THUMBNAIL_SRC,
+					file.getThumbnailLink());
 				document.addKeyword(Field.URL, file.getAlternateLink());
+				document.addKeyword(
+					GoogleDriveConstants.MIME_TYPE, file.getMimeType());
+				document.addUID(
+					GoogleDriveObject.class.getName(),
+					repositoryEntry.getRepositoryEntryId());
 
 				documents.add(document);
 				scores.add(1.0F);

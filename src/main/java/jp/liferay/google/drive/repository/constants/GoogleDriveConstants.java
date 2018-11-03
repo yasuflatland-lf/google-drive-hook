@@ -31,6 +31,12 @@ public class GoogleDriveConstants {
 	public static final long BASE_UNIT_FOR_CACHE = Time.MINUTE;
 
 	public static final long CACHE_DURAITON = 30L;
+	/**
+	 * Thumbnail URL in Google Drive
+	 */
+	public static final String THUMBNAIL_SRC = "thumbnailSrc";
+	
+	public static final String MIME_TYPE = "mimeType";
 	
 	public static final long _REFRESH_TIME = BASE_UNIT_FOR_CACHE * CACHE_DURAITON;
 }
