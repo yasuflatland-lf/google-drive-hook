@@ -576,18 +576,6 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 			GoogleDriveCache googleDriveCache =
 				GoogleDriveCacheFactory.create();
 
-			String key = extRepositoryObjectType.toString() +
-				StringPool.UNDERLINE + extRepositoryFolderKey;
-
-			GoogleDriveCachedObject googleDriveCachedObject =
-				googleDriveCache.getGoogleDriveCachedDirectory(
-					key, files, extRepositoryObjects, false);
-
-			if (null != googleDriveCachedObject &&
-				null != googleDriveCachedObject.getFiles()) {
-				return googleDriveCachedObject.getExtRepositoryObjects();
-			}
-
 			Drive drive = _connectionManager.getDrive();
 
 			Drive.Files driveFiles = drive.files();
@@ -643,10 +631,6 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 				googleDriveCache.getGoogleDriveCachedObject(
 					file.getId(), file, drive);
 			}
-
-			googleDriveCachedObject =
-				googleDriveCache.getGoogleDriveCachedDirectory(
-					key, files, extRepositoryObjects, true);
 
 			return extRepositoryObjects;
 		}
@@ -830,7 +814,7 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 
 		String serizlizedContext =
 			JSONFactoryUtil.serialize(_connectionManager.getContext());
-		
+
 		taskContextMap.put(
 			GoogleDriveConstants.GOOGLE_DRIVE_CONTEXT, serizlizedContext);
 
