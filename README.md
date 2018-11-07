@@ -11,10 +11,13 @@ This is a sample of Google Drive integration with Document and Media
 4. Deploy the module and configure it
 
 ### How to generate Google Client ID and Google Secret
-* Access to the [Google Cloud Platform](https://console.cloud.google.com/home/dashboard). If you've not created a project. Create a project. Then generate [Google Client ID and Google Client Secret](https://developers.google.com/fit/android/get-api-key#request_an_oauth_20_client_id_in_the_console_name)
-* Go to Libraly tab and add Google Drive API, then enable Drive API.
+* Access to the [Google Cloud Platform](https://console.cloud.google.com/home/dashboard). If you've not created a project. Create a project.
+* From the left menu, go to API and Service and select Authentication. Click create authentication infomation button and select OAuth client ID.
+* Create Application name (For example, GD service) and add all to the scope, and Save. If you want to keep it minimum, select only "https://www.googleapis.com/auth/drive"
+* Select "Other" in OAuth Client ID creation page and set the name "GD Service", and save. It'll show you both Client ID and Client Secret. Record the generated Client ID and Client Secret. Also please refer [this](https://developers.google.com/fit/android/get-api-key#request_an_oauth_20_client_id_in_the_console_name) document too.
+* Go to Libraly tab and add Google Drive API, then enable Drive API. And Click "Try this API" and  click "
+Authorize requests using OAuth 2.0:", then select all API links and click "Autholize"
 * Navigate to Authentication tab and create an Authentication, select Create OAuth Client ID, then select other, then add Name. In this case, we name it GDoc Auth
-* Record the generated Client ID and Client Secret.
 
 ### How to generate Authorization Code
 The detailss of scope, please refer [here](https://developers.google.com/drive/api/v2/about-auth)
@@ -36,7 +39,7 @@ module.framework.web.generator.generated.wabs.store.dir=${module.framework.base.
 ```
 
 * Start up Liferay server
-* Place this hook at ```${liferay_workspace}/modules``` and go to the root directory of hook, then run ```blade deploy```
+* Place this hook at ```${liferay_workspace}/wars``` and go to the root directory of hook, then run ```blade deploy```
 * Access to Liferay as Admin and navigate to Control Panel -> Contents -> Documents and Media
 * Click plus button and select Repository, open up Repository Configuration accordion and choose Googld Drive
 * Fill in ```Google Client ID```, ```Google Secret```, ```Access Token``` and ```Refresh Token``` and Save it with a name of the configration.
