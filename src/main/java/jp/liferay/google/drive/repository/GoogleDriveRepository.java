@@ -982,6 +982,9 @@ public class GoogleDriveRepository extends ExtRepositoryAdapter
 				document.addKeyword(
 					Field.ENTRY_CLASS_PK,
 					repositoryEntry.getRepositoryEntryId());
+				document.addKeyword(
+					GoogleDriveConstants.REPOSITORY_ID,
+					repositoryEntry.getRepositoryId());
 				document.addKeyword(Field.TITLE, file.getTitle());
 				document.addKeyword(
 					GoogleDriveConstants.THUMBNAIL_SRC,
